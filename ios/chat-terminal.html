@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFLO — Chat v1: Floating Terminal Window</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --red: #CC0000; --red-bright: #FF2020; --red-dim: #880000;
+    --green: #00FF88; --green-dim: #00AA55; --green-dark: #004418;
+    --cyan: #00DCFF; --cyan-dim: #0099BB;
+    --gold: #FFB800; --gold-dim: #AA7700;
+    --purple: #CC44FF; --purple-dim: #882299;
+    --white: #F0F0F0; --text: #CCCCCC; --text-dim: #555;
+    --panel: rgba(10,10,10,0.72);
+    --panel-light: rgba(20,20,20,0.60);
+    --border: rgba(136,0,0,0.45);
+  }
+
+  body {
+    background: #1a1a2e url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23CC0000' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 20px;
+    min-height: 100vh;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ── WINDOW SHELL ── */
+  .chat-window {
+    width: 285px;
+    max-height: 520px;
+    display: flex;
+    flex-direction: column;
+    filter: drop-shadow(0 4px 24px rgba(0,0,0,0.8));
+    position: relative;
+  }
+
+  /* corner brackets */
+  .bracket { position: absolute; width: 10px; height: 10px; z-index: 12; opacity: 0.5; }
+  .bracket-tl { top:-1px; left:-1px; border-top:1px solid var(--red-bright); border-left:1px solid var(--red-bright); }
+  .bracket-tr { top:-1px; right:-1px; border-top:1px solid var(--red-bright); border-right:1px solid var(--red-bright); }
+  .bracket-bl { bottom:-1px; left:-1px; border-bottom:1px solid var(--red-bright); border-left:1px solid var(--red-bright); }
+  .bracket-br { bottom:-1px; right:-1px; border-bottom:1px solid var(--red-bright); border-right:1px solid var(--red-bright); }
+
+  /* ── TITLE BAR ── */
+  .chat-titlebar {
+    height: 22px;
+    background: linear-gradient(180deg, rgba(26,0,0,0.82) 0%, rgba(13,0,0,0.78) 100%);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .chat-titlebar::after {
+    content: '';
+    position: absolute; top:0; left:-100%; width:60%; height:100%;
+    background: linear-gradient(90deg, transparent, rgba(255,32,32,0.07), transparent);
+    animation: shimmer 4s linear infinite;
+  }
+
+  .title-icon { font-family:'VT323',monospace; font-size:13px; color:var(--red-bright); }
+  .title-text {
+    font-size:9px; color:#999; letter-spacing:1px; flex:1;
+    white-space:nowrap; overflow:hidden;
+    animation: titleGlitch 6s steps(1) infinite;
+  }
+  .win-controls { display:flex; gap:4px; }
+  .win-ctrl { width:13px; height:11px; border:1px solid #333; display:flex; align-items:center; justify-content:center; font-size:7px; color:#444; }
+  .win-ctrl.close { border-color:#440000; color:#660000; }
+
+  /* ── MENU BAR ── */
+  .chat-menubar {
+    height: 17px;
+    background: rgba(16,16,16,0.60);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 8px; gap: 12px;
+    flex-shrink: 0;
+  }
+  .menu-item { font-size:9px; color:#3a3a3a; letter-spacing:1px; text-transform:uppercase; }
+  .menu-item.err { color:var(--red-dim); animation: charCorrupt 3s steps(1) infinite; }
+
+  /* ── CHAT BODY ── */
+  .chat-body {
+    background: var(--panel);
+    backdrop-filter: blur(20px) saturate(1.3);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    border: 1px solid var(--border);
+    border-top: none;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* scanlines */
+  .chat-body::before {
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:10;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px);
+  }
+
+  /* ── MESSAGE LIST ── */
+  .chat-messages {
+    padding: 8px 8px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 440px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .chat-messages::-webkit-scrollbar { display: none; }
+
+  /* ── SINGLE MESSAGE ── */
+  .msg {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    animation: msgSlideIn 0.25s cubic-bezier(0.16,1,0.3,1) forwards;
+    opacity: 0;
+  }
+
+  .msg-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .msg-prompt { font-size:9px; color:var(--red-dim); letter-spacing:1px; flex-shrink:0; }
+
+  .msg-badges { display:flex; gap:3px; }
+  .badge {
+    font-size:8px; letter-spacing:1px; padding:1px 4px;
+    border:1px solid; text-transform:uppercase; flex-shrink:0;
+  }
+  .badge-mod   { color:#00FF88; border-color:#004418; background:rgba(0,255,136,0.07); }
+  .badge-sub   { color:var(--red-bright); border-color:var(--red-dim); background:rgba(204,0,0,0.07); }
+  .badge-vip   { color:#FFB800; border-color:#AA7700; background:rgba(255,184,0,0.07); }
+  .badge-owner { color:#CC44FF; border-color:#882299; background:rgba(204,68,255,0.07); }
+
+  .msg-user {
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; letter-spacing:0.5px; flex-shrink:0;
+    padding: 0 5px;
+    border: 1px solid;
+    font-weight: normal;
+  }
+
+  /* role colors */
+  .user-owner  { color:#CC44FF; border-color:rgba(136,34,153,0.4); background:rgba(204,68,255,0.06); }
+  .user-mod    { color:#00FF88; border-color:rgba(0,68,24,0.5);    background:rgba(0,255,136,0.06); }
+  .user-vip    { color:#FFB800; border-color:rgba(170,119,0,0.4);  background:rgba(255,184,0,0.06); }
+  .user-sub    { color:var(--red-bright); border-color:rgba(136,0,0,0.4); background:rgba(204,0,0,0.06); }
+  .user-viewer { color:var(--white); border-color:rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); }
+
+  .msg-colon { font-size:10px; color:#333; flex-shrink:0; }
+
+  .msg-text {
+    font-size:11px; color:var(--text); line-height:1.5;
+    padding-left: 20px;
+    word-break: break-word;
+  }
+
+  .msg-text .emote { color:var(--red); font-family:'VT323',monospace; font-size:14px; }
+
+  /* ── STATUS BAR ── */
+  .chat-statusbar {
+    height: 16px;
+    background: rgba(16,16,16,0.60);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    display: flex; align-items: center;
+    padding: 0 8px; gap: 10px;
+    flex-shrink: 0;
+  }
+  .status-dot { width:5px; height:5px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); animation: dotPulse 2s ease-in-out infinite; flex-shrink:0; }
+  .status-text { font-size:8px; color:#3a3a3a; letter-spacing:1px; flex:1; }
+  .status-count { font-size:8px; color:var(--red-dim); letter-spacing:1px; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes shimmer { 0%{left:-100%} 100%{left:200%} }
+  @keyframes charCorrupt {
+    0%,85%,100%{opacity:1} 86%{opacity:0.3;letter-spacing:3px} 87%{opacity:1} 92%{color:var(--red-bright)} 93%{opacity:0.5} 94%{opacity:1}
+  }
+  @keyframes titleGlitch {
+    0%,89%,100%{transform:none;color:#999} 90%{transform:translateX(2px);color:var(--red-bright)} 91%{transform:translateX(-1px);color:#999} 92%{transform:none}
+  }
+  @keyframes msgSlideIn {
+    from { opacity:0; transform:translateX(-8px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+  @keyframes dotPulse {
+    0%,100%{opacity:1;box-shadow:0 0 4px var(--green)}
+    50%{opacity:0.5;box-shadow:0 0 10px var(--green)}
+  }
+</style>
+</head>
+<body>
+
+<div class="chat-window">
+  <div class="bracket bracket-tl"></div>
+  <div class="bracket bracket-tr"></div>
+  <div class="bracket bracket-bl"></div>
+  <div class="bracket bracket-br"></div>
+
+  <div class="chat-titlebar">
+    <div class="title-icon">⚡</div>
+    <div class="title-text">GFLO_OS — chat_stream.exe</div>
+    <div class="win-controls">
+      <div class="win-ctrl">_</div>
+      <div class="win-ctrl">□</div>
+      <div class="win-ctrl close">✕</div>
+    </div>
+  </div>
+
+  <div class="chat-menubar">
+    <div class="menu-item">Nodes</div>
+    <div class="menu-item err" id="menuErr">Filt█r</div>
+    <div class="menu-item">View</div>
+  </div>
+
+  <div class="chat-body">
+    <div class="chat-messages" id="chatMessages"></div>
+  </div>
+
+  <div class="chat-statusbar">
+    <div class="status-dot"></div>
+    <div class="status-text">LIVE — incoming packets</div>
+    <div class="status-count" id="viewerCount">0x00F NODES</div>
+  </div>
+</div>
+
+<script>
+const messages = [
+  { role:'owner',  user:'GFLO',   text:'System online. All nodes report in.' },
+  { role:'mod',    user:'R00tGuard',      text:'Chat active, system stable 👀' },
+  { role:'viewer', user:'xX_D4RKN0D3_Xx',text:'lets gooo finally online' },
+  { role:'sub',    user:'GhostPacket99',  text:'PogChamp the stream is LIVE' },
+  { role:'vip',    user:'SilentSH_',      text:'Ready for the tech talk today?' },
+  { role:'viewer', user:'netrunner42',    text:'first time here, this setup is insane' },
+  { role:'mod',    user:'KernelPanic_',   text:'Welcome everyone, lurkers too 👁' },
+  { role:'viewer', user:'void_ptr',       text:'that overlay tho... what did you use?' },
+  { role:'sub',    user:'PhantomTMP',     text:'HTML/CSS browser source probably lol' },
+  { role:'vip',    user:'SilentSH_',      text:'anyone else getting Matrix vibes rn' },
+  { role:'viewer', user:'packet_loss',    text:'GFLO lets gooo' },
+  { role:'mod',    user:'R00tGuard',      text:'!commands for the command list nodes' },
+  { role:'viewer', user:'malloc_void',    text:'bro typed !whoami and got a paragraph' },
+  { role:'sub',    user:'GhostPacket99',  text:'this is the best stream setup ive seen' },
+  { role:'viewer', user:'dark_bat_',      text:'coming from ShadowExec raid, hype 🔥' },
+];
+
+const roleMap = {
+  owner:  { badge:'OWNER', badgeClass:'badge-owner', userClass:'user-owner' },
+  mod:    { badge:'MOD',   badgeClass:'badge-mod',   userClass:'user-mod'   },
+  vip:    { badge:'VIP',   badgeClass:'badge-vip',   userClass:'user-vip'   },
+  sub:    { badge:'SUB',   badgeClass:'badge-sub',   userClass:'user-sub'   },
+  viewer: { badge:null,    badgeClass:null,           userClass:'user-viewer'},
+};
+
+const container = document.getElementById('chatMessages');
+let idx = 0;
+let count = 15;
+
+function addMessage(data) {
+  const r = roleMap[data.role];
+  const div = document.createElement('div');
+  div.className = 'msg';
+
+  let badgeHtml = r.badge
+    ? `<span class="badge ${r.badgeClass}">${r.badge}</span>`
+    : '';
+
+  div.innerHTML = `
+    <div class="msg-header">
+      <span class="msg-prompt">&gt;</span>
+      <div class="msg-badges">${badgeHtml}</div>
+      <span class="msg-user ${r.userClass}">${data.user}</span>
+      <span class="msg-colon">:</span>
+    </div>
+    <div class="msg-text">${data.text}</div>
+  `;
+
+  container.appendChild(div);
+
+  // keep max 12 messages
+  while (container.children.length > 12) {
+    container.children[0].style.transition = 'opacity 0.3s';
+    container.children[0].style.opacity = '0';
+    setTimeout(() => { if(container.children[0]) container.removeChild(container.children[0]); }, 300);
+  }
+
+  container.scrollTop = container.scrollHeight;
+  count++;
+  document.getElementById('viewerCount').textContent = '0x0' + count.toString(16).toUpperCase() + ' NODES';
+}
+
+function loop() {
+  addMessage(messages[idx % messages.length]);
+  idx++;
+  setTimeout(loop, 1800 + Math.random() * 1400);
+}
+
+// stagger first messages
+messages.slice(0,5).forEach((m, i) => setTimeout(() => addMessage(m), i * 600));
+idx = 5;
+setTimeout(loop, 5 * 600 + 1800);
+</script>
+</body>
+</html>

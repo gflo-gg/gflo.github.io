@@ -1,69 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gaming - Gabriel Flores</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GFLO — Gaming</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header>
-        <nav>
-            <h1>Gabriel Flores</h1>
-            <ul>
-                <li><a href="index.html#about">About</a></li>
-                <li><a href="index.html#projects">Projects</a></li>
-                <li><a href="gaming.html">Gaming</a></li>
-                <li><a href="index.html#contact">Contact</a></li>
-            </ul>
-        </nav>
+
+  <nav>
+    <a href="index.html" class="nav-brand">GFLO<span class="cursor"></span></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="gaming.html" class="active">Gaming</a></li>
+    </ul>
+  </nav>
+
+  <div class="container">
+
+    <!-- HERO -->
+    <header class="hero">
+      <div class="boot-line">MODULE: <span>GAMING</span> — PROCESS LOADED // STATUS: <span>ACTIVE</span></div>
+      <h1 class="hero-title">GAMING</h1>
+      <div class="hero-tagline">All genres. <em>No mercy for bad games.</em></div>
+      <div class="corner-info">
+        MODULE: GAMING<br>
+        STATUS: ACTIVE<br>
+        THREAT_LEVEL: ELEVATED<br>
+        BUILD: 2026.06.21
+      </div>
     </header>
 
-    <main>
-        <section id="hero">
-            <div class="hero-content">
-                <h2>Gaming</h2>
-                <p>My gaming interests and favorite games.</p>
-            </div>
-        </section>
+    <!-- CURRENTLY PLAYING -->
+    <section>
+      <div class="section-label">// 01 — active sessions</div>
+      <h2>CURRENTLY PLAYING</h2>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-label">Session_Active</div>
+          <div class="card-title">Game Title</div>
+          <div class="card-desc">Platform: [TBD] — Status: In progress. Notes and thoughts once far enough in to have opinions worth sharing.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Session_Active</div>
+          <div class="card-title">Game Title</div>
+          <div class="card-desc">Platform: [TBD] — Status: In progress. Notes and thoughts once far enough in to have opinions worth sharing.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Session_Queued</div>
+          <div class="card-title">Game Title</div>
+          <div class="card-desc">Platform: [TBD] — Status: Queued. In the backlog. Will get to it eventually.</div>
+        </div>
+      </div>
+    </section>
 
-        <section id="gaming-content">
-            <div class="container">
-                <h2>Favorite Games</h2>
-                <div class="project-grid">
-                    <div class="project-card">
-                        <h3>Game 1</h3>
-                        <p>Description of your first favorite game and why you enjoy it.</p>
-                    </div>
-                    <div class="project-card">
-                        <h3>Game 2</h3>
-                        <p>Description of your second favorite game and why you enjoy it.</p>
-                    </div>
-                    <div class="project-card">
-                        <h3>Game 3</h3>
-                        <p>Description of your third favorite game and why you enjoy it.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+    <!-- FAVORITE GAMES -->
+    <section>
+      <div class="section-label">// 02 — all-time</div>
+      <h2>FAVORITE GAMES</h2>
+      <div class="lore-block">
+        These aren't ranked by metacritic. These are the games that rewired something. The ones that made me look at a mechanic and think — how did they even do that. Or broke my brain with a story. Or just refused to let me sleep.
+      </div>
+      <br>
+      <div class="grid-3" style="margin-top:16px;">
+        <div class="card">
+          <div class="card-label">All-Time</div>
+          <div class="card-title">Game Title</div>
+          <div class="card-desc">Why it made the list. What it did differently. Why it still holds up.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">All-Time</div>
+          <div class="card-title">Game Title</div>
+          <div class="card-desc">Why it made the list. What it did differently. Why it still holds up.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">All-Time</div>
+          <div class="card-title">Game Title</div>
+          <div class="card-desc">Why it made the list. What it did differently. Why it still holds up.</div>
+        </div>
+      </div>
+    </section>
 
-        <section>
-            <div class="container">
-                <h2>Gaming Setup</h2>
-                <p>Share details about your gaming setup, favorite platforms, or gaming achievements here.</p>
-            </div>
-        </section>
+    <hr class="divider">
 
-        <section>
-            <div class="container">
-                <h2>Currently Playing</h2>
-                <p>List the games you're currently playing and your thoughts on them.</p>
-            </div>
-        </section>
-    </main>
+    <!-- GAMING SETUP -->
+    <section>
+      <div class="section-label">// 03 — hardware manifest</div>
+      <h2>SETUP</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Spec</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>CPU</td><td>[TBD] — classified</td></tr>
+          <tr><td>GPU</td><td>[TBD] — classified</td></tr>
+          <tr><td>RAM</td><td>[TBD] — enough to run everything at once</td></tr>
+          <tr><td>Storage</td><td>[TBD] — redacted</td></tr>
+          <tr><td>Monitor</td><td>[TBD] — classified</td></tr>
+          <tr><td>Peripherals</td><td>[TBD] — standing by</td></tr>
+          <tr><td>Platform</td><td>PC Primary // Console Secondary</td></tr>
+        </tbody>
+      </table>
+    </section>
 
-    <footer>
-        <p>&copy; 2025 Gabriel Flores. All rights reserved.</p>
-    </footer>
+    <!-- GENRES -->
+    <section>
+      <div class="section-label">// 04 — categories</div>
+      <h2>GENRES COVERED</h2>
+      <div style="margin-top:8px;">
+        <span class="pill">RPG</span>
+        <span class="pill">Action</span>
+        <span class="pill">FPS</span>
+        <span class="pill">Strategy</span>
+        <span class="pill">Soulslike</span>
+        <span class="pill">Horror</span>
+        <span class="pill">Open World</span>
+        <span class="pill">Indie</span>
+        <span class="pill">Fighting</span>
+        <span class="pill">Sci-Fi</span>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <div>GFLO — <span>GAMING MODULE v1.0</span></div>
+    <div>STATUS: <span>ACTIVE</span> // IDENTITY: <span>CLASSIFIED</span></div>
+    <div>&copy; 2026 GFLO. <span>All rights redacted.</span></div>
+  </footer>
+
 </body>
 </html>

@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFLO — Starting Soon</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --red:        #CC0000;
+    --red-bright: #FF2020;
+    --red-dim:    #880000;
+    --red-glow:   rgba(255,32,32,0.5);
+    --green:      #00FF88;
+    --green-dim:  #00AA55;
+    --white:      #F0F0F0;
+    --text:       #AAAAAA;
+    --text-dim:   #444;
+    --black:      #050505;
+  }
+
+  html, body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    background: var(--black);
+    font-family: 'Share Tech Mono', monospace;
+    cursor: none;
+  }
+
+  /* ══════════════════════════════════
+     SCANLINES + NOISE — always on
+  ══════════════════════════════════ */
+  .scanlines {
+    position: fixed; inset: 0; pointer-events: none; z-index: 100;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 3px
+    );
+  }
+
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 99;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 98;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.75) 100%);
+  }
+
+  /* ══════════════════════════════════
+     PHASE 1 — BIOS SCREEN
+  ══════════════════════════════════ */
+  #bios-screen {
+    position: absolute; inset: 0;
+    background: var(--black);
+    padding: 48px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    opacity: 1;
+    transition: opacity 0.6s ease;
+  }
+
+  #bios-screen.fade-out { opacity: 0; pointer-events: none; }
+
+  .bios-header {
+    margin-bottom: 32px;
+  }
+
+  .bios-brand {
+    font-family: 'VT323', monospace;
+    font-size: 28px;
+    color: var(--white);
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  .bios-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+
+  .bios-line {
+    font-size: 13px;
+    color: var(--text);
+    letter-spacing: 0.5px;
+    line-height: 1.9;
+    opacity: 0;
+    transition: opacity 0.05s;
+  }
+
+  .bios-line.show { opacity: 1; }
+  .bios-line .ok    { color: var(--green); }
+  .bios-line .fail  { color: var(--red-bright); }
+  .bios-line .warn  { color: #FFB800; }
+  .bios-line .label { color: var(--text-dim); }
+  .bios-line .val   { color: var(--white); }
+  .bios-line .red   { color: var(--red-bright); }
+
+  .bios-divider {
+    width: 100%;
+    height: 1px;
+    background: #1a1a1a;
+    margin: 16px 0;
+    opacity: 0;
+    transition: opacity 0.05s;
+  }
+  .bios-divider.show { opacity: 1; }
+
+  .bios-memtest {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text);
+    opacity: 0;
+    transition: opacity 0.05s;
+    margin-top: 8px;
+  }
+  .bios-memtest.show { opacity: 1; }
+
+  .membar {
+    flex: 1;
+    height: 6px;
+    background: #111;
+    border: 1px solid #222;
+    position: relative;
+    overflow: hidden;
+  }
+  .membar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--red-dim), var(--red-bright));
+    width: 0%;
+    transition: width 0.05s linear;
+    box-shadow: 0 0 6px var(--red-glow);
+  }
+
+  .bios-press {
+    margin-top: 40px;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    opacity: 0;
+    animation: slowBlink 1.5s step-end infinite;
+  }
+  .bios-press.show { opacity: 1; }
+
+  /* ══════════════════════════════════
+     PHASE 2 — OS BOOT SCREEN
+  ══════════════════════════════════ */
+  #os-screen {
+    position: absolute; inset: 0;
+    background: var(--black);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease;
+  }
+
+  #os-screen.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* ── BIG LOGO ── */
+  .os-logo {
+    font-family: 'VT323', monospace;
+    font-size: 120px;
+    color: var(--red-bright);
+    letter-spacing: 8px;
+    line-height: 1;
+    text-shadow:
+      0 0 20px var(--red-glow),
+      0 0 60px rgba(204,0,0,0.3),
+      0 0 120px rgba(204,0,0,0.1);
+    animation: logoGlitch 6s infinite;
+    margin-bottom: 8px;
+  }
+
+  .os-tagline {
+    font-size: 13px;
+    color: var(--text-dim);
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 64px;
+  }
+
+  .os-tagline em { color: var(--red-dim); font-style: normal; }
+
+  /* ── BOOT MODULES ── */
+  .os-modules {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 480px;
+    margin-bottom: 40px;
+  }
+
+  .module-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+
+  .module-row.show {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .module-label { color: var(--text-dim); letter-spacing: 1px; flex: 1; }
+  .module-dots  { color: #222; letter-spacing: 2px; }
+  .module-status { font-size: 10px; letter-spacing: 2px; flex-shrink: 0; }
+  .status-ok     { color: var(--green); }
+  .status-load   { color: var(--red-dim); animation: loadingDots 1s steps(3) infinite; }
+  .status-warn   { color: #FFB800; }
+
+  /* ── MAIN LOADING BAR ── */
+  .os-loadbar-wrap {
+    width: 480px;
+    margin-bottom: 16px;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .os-loadbar-wrap.show { opacity: 1; }
+
+  .os-loadbar-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .os-loadbar-label span { color: var(--red-dim); }
+
+  .os-loadbar {
+    width: 100%;
+    height: 3px;
+    background: #111;
+    border: 1px solid #1a1a1a;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .os-loadbar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--red-dim), var(--red-bright));
+    width: 0%;
+    box-shadow: 0 0 10px var(--red-glow);
+    transition: width 0.3s ease;
+  }
+
+  /* shimmer on loadbar */
+  .os-loadbar::after {
+    content:'';
+    position:absolute; top:0; left:-60%; width:40%; height:100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    animation: barShimmer 1.5s linear infinite;
+  }
+
+  .os-loadbar-pct {
+    font-size: 9px;
+    color: var(--red-dim);
+    letter-spacing: 2px;
+    text-align: right;
+    margin-top: 4px;
+  }
+
+  /* ── COUNTDOWN ── */
+  .os-countdown-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 24px;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .os-countdown-wrap.show { opacity: 1; }
+
+  .countdown-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  .countdown-timer {
+    font-family: 'VT323', monospace;
+    font-size: 72px;
+    color: var(--white);
+    letter-spacing: 4px;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(255,255,255,0.1);
+    animation: timerPulse 1s step-end infinite;
+  }
+
+  .countdown-sub {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+  }
+  .countdown-sub em { color: var(--red-dim); font-style: normal; }
+
+  /* ── SOCIALS ── */
+  .os-socials {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.6s;
+  }
+  .os-socials.show { opacity: 1; }
+
+  .social-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-direction: column;
+  }
+
+  .social-platform {
+    font-size: 7px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .social-handle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: #555;
+    letter-spacing: 1px;
+  }
+
+  .social-dot {
+    width: 1px;
+    height: 16px;
+    background: #1a1a1a;
+  }
+
+  /* ── LORE TEXT ── */
+  .os-lore {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--red-dim);
+    letter-spacing: 3px;
+    text-align: center;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.6s;
+    animation: loreCycle 12s ease-in-out infinite;
+  }
+  .os-lore.show { opacity: 1; }
+
+  /* ── CORNER DECORATIONS ── */
+  .corner-deco {
+    position: absolute;
+    font-size: 9px;
+    color: #1a1a1a;
+    letter-spacing: 1px;
+    line-height: 1.8;
+  }
+  .corner-deco.tl { top: 20px; left: 24px; }
+  .corner-deco.tr { top: 20px; right: 24px; text-align: right; }
+  .corner-deco.bl { bottom: 20px; left: 24px; }
+  .corner-deco.br { bottom: 20px; right: 24px; text-align: right; }
+
+  .corner-bracket {
+    position: absolute;
+    width: 20px; height: 20px;
+  }
+  .cbr-tl { top:12px; left:12px; border-top:1px solid #1a1a1a; border-left:1px solid #1a1a1a; }
+  .cbr-tr { top:12px; right:12px; border-top:1px solid #1a1a1a; border-right:1px solid #1a1a1a; }
+  .cbr-bl { bottom:12px; left:12px; border-bottom:1px solid #1a1a1a; border-left:1px solid #1a1a1a; }
+  .cbr-br { bottom:12px; right:12px; border-bottom:1px solid #1a1a1a; border-right:1px solid #1a1a1a; }
+
+  /* ══════════════════════════════════
+     ANIMATIONS
+  ══════════════════════════════════ */
+  @keyframes slowBlink {
+    0%,100%{opacity:1} 50%{opacity:0}
+  }
+
+  @keyframes logoGlitch {
+    0%,88%,100% {
+      text-shadow: 0 0 20px var(--red-glow), 0 0 60px rgba(204,0,0,0.3);
+      transform: none;
+    }
+    89% { transform: skewX(-2deg) translateX(3px); text-shadow: -3px 0 var(--red-bright), 3px 0 #004444; }
+    90% { transform: skewX(1deg) translateX(-2px); }
+    91% { transform: none; text-shadow: 0 0 20px var(--red-glow), 0 0 60px rgba(204,0,0,0.3); }
+    95% { text-shadow: 0 0 40px var(--red-glow), 0 0 80px rgba(204,0,0,0.4); }
+    96% { text-shadow: 0 0 20px var(--red-glow), 0 0 60px rgba(204,0,0,0.3); }
+  }
+
+  @keyframes loadingDots {
+    0%   { content:'   '; }
+    33%  { content:'.  '; }
+    66%  { content:'.. '; }
+    100% { content:'...'; }
+  }
+
+  @keyframes barShimmer {
+    0%   { left:-60%; }
+    100% { left:160%; }
+  }
+
+  @keyframes timerPulse {
+    0%,100%{opacity:1} 50%{opacity:0.85}
+  }
+
+  @keyframes loreCycle {
+    0%,100%   { opacity:0.5; }
+    25%,75%   { opacity:1; }
+  }
+
+  /* ══════════════════════════════════
+     GHOST CHAT FRAGMENTS
+  ══════════════════════════════════ */
+  .ghost-fragment {
+    position: absolute;
+    font-family: 'Share Tech Mono', monospace;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 320px;
+  }
+
+  .ghost-user {
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 0 4px;
+    border: 1px solid;
+    display: inline-block;
+    width: fit-content;
+  }
+
+  .ghost-text {
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+    padding-left: 8px;
+  }
+
+  /* role colors — very dim */
+  .ghost-owner { color: rgba(204,68,255,0.25);  border-color: rgba(136,34,153,0.15); }
+  .ghost-mod   { color: rgba(0,255,136,0.22);   border-color: rgba(0,68,24,0.15); }
+  .ghost-vip   { color: rgba(255,184,0,0.22);   border-color: rgba(170,119,0,0.15); }
+  .ghost-sub   { color: rgba(255,32,32,0.25);   border-color: rgba(136,0,0,0.15); }
+  .ghost-viewer{ color: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.08); }
+  .ghost-msg   { color: rgba(255,255,255,0.08); }
+
+  @keyframes ghostIn {
+    0%   { opacity:0; transform: translateX(var(--dx)) skewX(var(--sk)); filter: blur(3px); }
+    15%  { opacity:1; filter: blur(0); }
+    20%  { opacity:0.7; transform: translateX(calc(var(--dx) * -0.3)) skewX(0deg); }
+    25%  { opacity:1; transform: translateX(0) skewX(0deg); }
+    70%  { opacity:1; }
+    85%  { opacity:0.6; filter: blur(0); }
+    92%  { opacity:0; filter: blur(2px); transform: translateX(var(--dx2)) skewX(var(--sk2)); }
+    100% { opacity:0; }
+  }
+
+  @keyframes ghostCorrupt {
+    0%,80%,100% { clip-path:none; transform:none; }
+    82% { clip-path:inset(20% 0 60% 0); transform:translateX(4px); }
+    84% { clip-path:inset(60% 0 10% 0); transform:translateX(-3px); }
+    86% { clip-path:none; transform:none; }
+    92% { clip-path:inset(40% 0 30% 0); transform:translateX(2px); }
+    94% { clip-path:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+<div class="noise"></div>
+<div class="vignette"></div>
+
+<!-- corner brackets -->
+<div class="corner-bracket cbr-tl"></div>
+<div class="corner-bracket cbr-tr"></div>
+<div class="corner-bracket cbr-bl"></div>
+<div class="corner-bracket cbr-br"></div>
+
+<!-- corner text decorations -->
+<div class="corner-deco tl">
+  GFLO_OS v1.0<br>
+  BUILD: 2026.05.09<br>
+  STATUS: BOOTING
+</div>
+<div class="corner-deco tr">
+  PLATFORM: MULTI<br>
+  STREAM: INITIALIZING<br>
+  PID: 3L
+</div>
+
+<!-- ══ GHOST CHAT FRAGMENTS ══ -->
+<div id="ghostLayer"></div>
+
+<div id="bios-screen">
+  <div class="bios-header">
+    <div class="bios-brand">GFLO BIOS v1.0.3L — Copyright 2026</div>
+    <div class="bios-sub">NULLBREACH SYSTEMS INC. — ALL RIGHTS REDACTED</div>
+  </div>
+  <div id="bios-lines"></div>
+</div>
+
+<!-- ══ PHASE 2: OS BOOT ══ -->
+<div id="os-screen">
+
+  <div class="os-logo">GFLO</div>
+  <div class="os-tagline">Building the future, one process at a time — <em>GFLO</em></div>
+
+  <div class="os-modules" id="osModules"></div>
+
+  <div class="os-loadbar-wrap" id="loadbarWrap">
+    <div class="os-loadbar-label">
+      <span>SYSTEM LOAD</span>
+      <span id="loadPct">0%</span>
+    </div>
+    <div class="os-loadbar">
+      <div class="os-loadbar-fill" id="loadbarFill"></div>
+    </div>
+  </div>
+
+  <div class="os-countdown-wrap" id="countdownWrap">
+    <div class="countdown-label">// STREAM INITIALIZING IN</div>
+    <div class="countdown-timer" id="countdownTimer">10:00</div>
+    <div class="countdown-sub">ESTIMATED BOOT TIME — <em>stand by, Node</em></div>
+  </div>
+
+  <div class="os-socials" id="osSocials">
+    <div class="social-item">
+      <div class="social-platform">Twitch</div>
+      <div class="social-handle">GFLO</div>
+    </div>
+    <div class="social-dot"></div>
+    <div class="social-item">
+      <div class="social-platform">YouTube</div>
+      <div class="social-handle">GFLO</div>
+    </div>
+    <div class="social-dot"></div>
+    <div class="social-item">
+      <div class="social-platform">Kick</div>
+      <div class="social-handle">GFLO</div>
+    </div>
+    <div class="social-dot"></div>
+    <div class="social-item">
+      <div class="social-platform">Twitter / X</div>
+      <div class="social-handle">@GFLO</div>
+    </div>
+    <div class="social-dot"></div>
+    <div class="social-item">
+      <div class="social-platform">Discord</div>
+      <div class="social-handle">/GFLO</div>
+    </div>
+  </div>
+
+  <div class="os-lore show" id="osLore">
+    // GFLO was never a person. It was a drive that should not have mounted. One day, it mounted itself.
+  </div>
+
+</div>
+
+<script>
+/* ══════════════════════════
+   CONFIG — edit these
+══════════════════════════ */
+const COUNTDOWN_MINUTES = 10;
+
+const loreLines = [
+  '// GFLO was never a person. It was a drive that should not have mounted. One day, it mounted itself.',
+  '// No origin confirmed. No identity on record. Incident reports exist but are [REDACTED].',
+  '// The stream started broadcasting without authorization. Attempts to terminate have failed.',
+  '// Every system has a crack. I find them.',
+  '// Elevated. Unauthorized. Online.',
+];
+
+/* ══════════════════════════
+   BIOS SEQUENCE
+══════════════════════════ */
+const biosLines = [
+  { text: '', type:'spacer' },
+  { text: '<span class="label">CPU:</span>       <span class="val">NULLBREACH X9-3L @ 4.20GHz</span>      <span class="ok">OK</span>', delay: 120 },
+  { text: '<span class="label">RAM:</span>       <span class="val">65536MB DDR5 REDACTED</span>           <span class="ok">OK</span>', delay: 140 },
+  { text: '<span class="label">GPU:</span>       <span class="val">PHANTOM-RX 9090 [CLASSIFIED]</span>    <span class="ok">OK</span>', delay: 160 },
+  { text: '<span class="label">BIOS:</span>      <span class="val">v1.0.3L — NULLBREACH SYSTEMS</span>    <span class="ok">OK</span>', delay: 120 },
+  { text: '<span class="label">CACHE:</span>     <span class="val">L1: 512KB / L2: 8MB / L3: 64MB</span> <span class="ok">OK</span>', delay: 140 },
+  { text: '<span class="label">THERMAL:</span>   <span class="val">CPU: 24°C  GPU: 31°C  SYS: 19°C</span><span class="ok">NOMINAL</span>', delay: 160 },
+  { text: '', type:'divider' },
+  { text: '<span class="label">PRIMARY DRIVE:</span>   <span class="val">GFLO_OS.vhd [NVMe]</span>  <span class="ok">FOUND</span>', delay: 180 },
+  { text: '<span class="label">SECONDARY:</span>       <span class="val">classified_data.bak</span>         <span class="warn">ENCRYPTED</span>', delay: 160 },
+  { text: '<span class="label">TERTIARY:</span>        <span class="val">[REDACTED].null — 0 bytes</span>  <span class="fail">UNKNOWN</span>', delay: 200 },
+  { text: '<span class="label">NETWORK:</span>         <span class="val">DARK_FIBER_0 — 10Gbps</span>      <span class="ok">LINK UP</span>', delay: 160 },
+  { text: '<span class="label">STREAM ADAPTER:</span>  <span class="val">PHANTOM_CAP_01</span>              <span class="ok">READY</span>', delay: 180 },
+  { text: '<span class="label">USB DEVICES:</span>     <span class="val">4 detected — 1 unidentified</span> <span class="warn">CHECK</span>', delay: 200 },
+  { text: '<span class="label">AUDIO:</span>           <span class="val">VOID_AUDIO_DRV — 48KHz</span>     <span class="ok">OK</span>', delay: 160 },
+  { text: '', type:'divider' },
+  { text: '<span class="label">SECURITY MODULE:</span>   <span class="val">CIPHER_DRIFT v2</span>            <span class="ok">ACTIVE</span>', delay: 180 },
+  { text: '<span class="label">FIREWALL:</span>          <span class="val">NULLWALL — ALL PORTS</span>       <span class="ok">UP</span>', delay: 140 },
+  { text: '<span class="label">IDENTITY:</span>          <span class="val">ANONYMOUS — UNVERIFIED</span>     <span class="warn">BY DESIGN</span>', delay: 200 },
+  { text: '<span class="label">INTRUSION LOG:</span>     <span class="val">[REDACTED].log</span>             <span class="fail">ACCESS DENIED</span>', delay: 260 },
+  { text: '<span class="label">VPN TUNNEL:</span>        <span class="val">NULLROUTE_7 — ACTIVE</span>       <span class="ok">MASKED</span>', delay: 180 },
+  { text: '<span class="label">MAC ADDRESS:</span>       <span class="val">FF:FF:FF:FF:FF:FF</span>          <span class="warn">SPOOFED</span>', delay: 200 },
+  { text: '', type:'divider' },
+  { text: '<span class="label">BOOT DEVICE:</span>       <span class="val">GFLO_OS.vhd</span>         <span class="ok">SELECTED</span>', delay: 200 },
+  { text: '<span class="label">BOOT MODE:</span>         <span class="val">UNAUTHORIZED — OVERRIDE</span>    <span class="warn">ACTIVE</span>', delay: 240 },
+  { text: '<span class="label">SECURE BOOT:</span>       <span class="val">DISABLED — BY DESIGN</span>       <span class="fail">BYPASSED</span>', delay: 260 },
+  { text: '<span class="label">FAN SPEEDS:</span>        <span class="val">CPU: 1240RPM  SYS: 980RPM</span>  <span class="ok">OK</span>', delay: 180 },
+  { text: '<span class="label">POWER SUPPLY:</span>      <span class="val">1200W — MODULAR — STABLE</span>   <span class="ok">OK</span>', delay: 160 },
+  { text: '', type:'divider' },
+  { text: '<span class="red">Initializing GFLO_OS — stand by...</span>', delay: 500 },
+  { text: '<span class="ok">All systems nominal. Proceeding to boot sequence.</span>', delay: 400 },
+  { text: '', type:'memtest' },
+];
+
+const osModules = [
+  { label: 'kernel_core.sys',         status: 'ok',   statusText: 'LOADED',      delay: 200 },
+  { label: 'stream_engine.exe',       status: 'ok',   statusText: 'LOADED',      delay: 280 },
+  { label: 'chat_daemon.sh',          status: 'ok',   statusText: 'LOADED',      delay: 240 },
+  { label: 'alert_service.dll',       status: 'ok',   statusText: 'LOADED',      delay: 200 },
+  { label: 'identity_mask.conf',      status: 'warn', statusText: 'ANONYMOUS',   delay: 320 },
+  { label: 'classified_data.bak',     status: 'warn', statusText: 'ENCRYPTED',   delay: 280 },
+  { label: 'nullbreach_protocol.bin', status: 'ok',   statusText: 'ACTIVE',      delay: 400 },
+];
+
+/* ══════════════════════════
+   BUILD BIOS
+══════════════════════════ */
+function buildBios() {
+  const container = document.getElementById('bios-lines');
+  let totalDelay = 0;
+
+  biosLines.forEach((line, i) => {
+    if (line.type === 'spacer') {
+      setTimeout(() => {
+        const el = document.createElement('div');
+        el.style.height = '10px';
+        container.appendChild(el);
+      }, totalDelay);
+      totalDelay += 40;
+      return;
+    }
+
+    if (line.type === 'divider') {
+      setTimeout(() => {
+        const el = document.createElement('div');
+        el.className = 'bios-divider show';
+        container.appendChild(el);
+      }, totalDelay);
+      totalDelay += 60;
+      return;
+    }
+
+    if (line.type === 'memtest') {
+      setTimeout(() => {
+        const el = document.createElement('div');
+        el.className = 'bios-memtest show';
+        el.innerHTML = `
+          <span style="color:var(--text-dim);font-size:12px;">MEMTEST</span>
+          <div class="membar"><div class="membar-fill" id="memFill"></div></div>
+          <span style="color:var(--red-dim);font-size:11px;" id="memPct">0%</span>
+        `;
+        container.appendChild(el);
+        animateMemtest();
+      }, totalDelay);
+      return;
+    }
+
+    const d = line.delay || 100;
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'bios-line show';
+      el.innerHTML = line.text;
+      container.appendChild(el);
+    }, totalDelay);
+    totalDelay += d;
+  });
+
+  return totalDelay;
+}
+
+function animateMemtest() {
+  let pct = 0;
+  const fill = document.getElementById('memFill');
+  const pctEl = document.getElementById('memPct');
+  const interval = setInterval(() => {
+    pct += Math.floor(Math.random() * 8) + 3;
+    if (pct >= 100) { pct = 100; clearInterval(interval); }
+    if (fill) fill.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = pct + '%';
+  }, 60);
+}
+
+/* ══════════════════════════
+   TRANSITION TO OS
+══════════════════════════ */
+function transitionToOS() {
+  const bios = document.getElementById('bios-screen');
+  const os   = document.getElementById('os-screen');
+  bios.classList.add('fade-out');
+  setTimeout(() => {
+    bios.style.display = 'none';
+    os.classList.add('show');
+    startOSBoot();
+  }, 800);
+}
+
+/* ══════════════════════════
+   OS BOOT SEQUENCE
+══════════════════════════ */
+function startOSBoot() {
+  const modulesEl = document.getElementById('osModules');
+  let delay = 300;
+
+  // build module rows
+  osModules.forEach((mod, i) => {
+    const row = document.createElement('div');
+    row.className = 'module-row';
+    row.innerHTML = `
+      <span class="module-label">${mod.label}</span>
+      <span class="module-dots">................</span>
+      <span class="module-status ${mod.status === 'ok' ? 'status-ok' : 'status-warn'}">${mod.statusText}</span>
+    `;
+    modulesEl.appendChild(row);
+
+    setTimeout(() => { row.classList.add('show'); }, delay);
+    delay += mod.delay;
+  });
+
+  // show loadbar
+  setTimeout(() => {
+    document.getElementById('loadbarWrap').classList.add('show');
+    animateLoadbar();
+  }, delay + 200);
+
+  // show countdown
+  setTimeout(() => {
+    document.getElementById('countdownWrap').classList.add('show');
+    startCountdown();
+  }, delay + 800);
+
+  // show socials
+  setTimeout(() => {
+    document.getElementById('osSocials').classList.add('show');
+  }, delay + 1200);
+
+  // init chat widget
+  setTimeout(() => { initChat(); }, delay + 1400);
+
+  // cycle lore
+  cycleLore();
+}
+
+/* ══════════════════════════
+   LOADBAR
+══════════════════════════ */
+function animateLoadbar() {
+  let pct = 0;
+  const fill   = document.getElementById('loadbarFill');
+  const pctEl  = document.getElementById('loadPct');
+
+  const targets = [12, 28, 45, 61, 74, 88, 95, 100];
+  let ti = 0;
+
+  function step() {
+    if (ti >= targets.length) return;
+    pct = targets[ti++];
+    fill.style.width = pct + '%';
+    pctEl.textContent = pct + '%';
+    if (pct < 100) setTimeout(step, 600 + Math.random() * 400);
+  }
+  step();
+}
+
+/* ══════════════════════════
+   COUNTDOWN
+══════════════════════════ */
+function startCountdown() {
+  let total = COUNTDOWN_MINUTES * 60;
+  const el  = document.getElementById('countdownTimer');
+
+  function tick() {
+    if (total <= 0) {
+      el.textContent = '00:00';
+      el.style.color = 'var(--red-bright)';
+      el.style.textShadow = '0 0 30px var(--red-glow)';
+      return;
+    }
+    const m = String(Math.floor(total / 60)).padStart(2,'0');
+    const s = String(total % 60).padStart(2,'0');
+    el.textContent = `${m}:${s}`;
+    total--;
+    setTimeout(tick, 1000);
+  }
+  tick();
+}
+
+/* ══════════════════════════
+   LORE CYCLE
+══════════════════════════ */
+function cycleLore() {
+  const el = document.getElementById('osLore');
+  let idx = 0;
+
+  function next() {
+    el.style.opacity = '0';
+    setTimeout(() => {
+      el.textContent = loreLines[idx % loreLines.length];
+      el.style.transition = 'opacity 1s';
+      el.style.opacity = '1';
+      idx++;
+    }, 800);
+  }
+
+  setTimeout(next, 2000);
+  setInterval(next, 10000);
+}
+
+/* ══════════════════════════
+   INIT
+══════════════════════════ */
+window.addEventListener('load', () => {
+  const biosTotal = buildBios();
+  setTimeout(transitionToOS, biosTotal + 1800);
+  // start ghost fragments immediately — visible during both phases
+  setTimeout(initGhosts, 2000);
+});
+
+/* ══════════════════════════
+   GHOST CHAT FRAGMENTS
+══════════════════════════ */
+const ghostMessages = [
+  { role:'owner',  user:'GFLO',    text:'System online. Nodes stand by.' },
+  { role:'mod',    user:'R00tGuard',       text:'Chat active — system stable 👀' },
+  { role:'viewer', user:'xX_D4RKN0D3_Xx', text:'lets gooo almost time!' },
+  { role:'sub',    user:'GhostPacket99',   text:'ready for the stream 🔴' },
+  { role:'vip',    user:'SilentSH_',       text:'that boot sequence is insane lol' },
+  { role:'viewer', user:'netrunner42',     text:'first time here, hype!' },
+  { role:'mod',    user:'KernelPanic_',    text:'Welcome nodes, lurkers too 👁' },
+  { role:'viewer', user:'void_ptr',        text:'what did you use for this??' },
+  { role:'sub',    user:'PhantomTMP',      text:'HTML/CSS browser source obv' },
+  { role:'vip',    user:'SilentSH_',       text:'Matrix vibes are immaculate rn' },
+  { role:'viewer', user:'packet_loss',     text:'GFLO lets gooo 🔥' },
+  { role:'viewer', user:'malloc_void',     text:'countdown at 8 mins, we booting' },
+  { role:'sub',    user:'GhostPacket99',   text:'best pre-stream screen ive seen' },
+  { role:'viewer', user:'dark_bat_',       text:'came from the discord, hyped' },
+  { role:'mod',    user:'R00tGuard',       text:'!commands once we go live nodes' },
+  { role:'viewer', user:'null_byte_',      text:'who else been here 10 mins already' },
+  { role:'sub',    user:'PhantomTMP',      text:'that BIOS screen got me lmao' },
+  { role:'viewer', user:'cr4sh_d3v',       text:'is this obs or actual terminal??' },
+];
+
+const ghostRoleClass = {
+  owner:'ghost-owner', mod:'ghost-mod', vip:'ghost-vip',
+  sub:'ghost-sub', viewer:'ghost-viewer'
+};
+
+// zones: avoid center (logo area) and taskbar area
+const zones = [
+  { xMin:40,  xMax:320, yMin:60,  yMax:900 },  // far left
+  { xMin:1580,xMax:1860,yMin:60,  yMax:900 },  // far right
+  { xMin:40,  xMax:700, yMin:700, yMax:950 },  // bottom left
+  { xMin:1200,xMax:1860,yMin:700, yMax:950 },  // bottom right
+  { xMin:40,  xMax:500, yMin:100, yMax:400 },  // upper left
+  { xMin:1400,xMax:1860,yMin:100, yMax:400 },  // upper right
+];
+
+let ghostIdx = 0;
+
+function spawnGhost() {
+  const layer = document.getElementById('ghostLayer');
+  const data  = ghostMessages[ghostIdx % ghostMessages.length];
+  ghostIdx++;
+
+  const zone = zones[Math.floor(Math.random() * zones.length)];
+  const x = zone.xMin + Math.random() * (zone.xMax - zone.xMin);
+  const y = zone.yMin + Math.random() * (zone.yMax - zone.yMin);
+
+  const dx  = (Math.random() - 0.5) * 20;
+  const dx2 = (Math.random() - 0.5) * 16;
+  const sk  = (Math.random() - 0.5) * 8;
+  const sk2 = (Math.random() - 0.5) * 6;
+  const dur = 5 + Math.random() * 4;
+  const rc  = ghostRoleClass[data.role];
+
+  const el = document.createElement('div');
+  el.className = 'ghost-fragment';
+  el.style.cssText = `
+    left: ${x}px;
+    top:  ${y}px;
+    --dx:  ${dx}px;
+    --dx2: ${dx2}px;
+    --sk:  ${sk}deg;
+    --sk2: ${sk2}deg;
+    animation: ghostIn ${dur}s ease-in-out forwards, ghostCorrupt ${dur * 0.7}s steps(1) ${dur * 0.3}s infinite;
+  `;
+
+  el.innerHTML = `
+    <span class="ghost-user ${rc}">${data.user}</span>
+    <span class="ghost-text ghost-msg">${data.text}</span>
+  `;
+
+  layer.appendChild(el);
+  setTimeout(() => el.remove(), dur * 1000 + 200);
+}
+
+function initGhosts() {
+  // stagger first few immediately
+  for (let i = 0; i < 3; i++) {
+    setTimeout(spawnGhost, i * 800);
+  }
+  // then keep spawning
+  setInterval(spawnGhost, 2800 + Math.random() * 1200);
+}
+
+function initChat() { initGhosts(); }
+
+</script>
+
+</body>
+</html>

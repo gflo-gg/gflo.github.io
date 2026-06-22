@@ -1,68 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Website</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            line-height: 1.6;
-        }
-        nav {
-            background-color: #333;
-            padding: 1rem;
-        }
-        nav ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-        }
-        nav a {
-            color: white;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        nav a:hover {
-            color: #4CAF50;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        header {
-            text-align: center;
-            padding: 20px 0;
-        }
-        h1 {
-            color: #333;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GFLO — Home</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <nav>
-        <ul>
-            <li><a href="index.html">Home</a></li>
-            <li><a href="gaming.html">Gaming</a></li>
-        </ul>
-    </nav>
-    <div class="container">
-        <header>
-            <h1>Welcome to My Website</h1>
-        </header>
-    <main>
-        <p>Hello! This is a simple website. Where I will update all on all aspects of what I am learning and what I am working on. This can range from anything gaming, anime, movies, shows, and IT Infrastructure related.</p>
-        <p>Looking forward to sharing my journey with you.</p>
-    </main>
-    <footer>
-        <p>&copy; 2026 GFlo</p>
-    </footer>
-    </div>
+
+  <nav>
+    <a href="index.html" class="nav-brand">GFLO<span class="cursor"></span></a>
+    <ul class="nav-links">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="gaming.html">Gaming</a></li>
+    </ul>
+  </nav>
+
+  <div class="container">
+
+    <!-- HERO -->
+    <header class="hero">
+      <div class="boot-line">GFLO_OS <span>v1.0</span> — SYSTEM ONLINE // STATUS: <span>ACTIVE</span></div>
+      <h1 class="hero-title">GFLO</h1>
+      <div class="hero-tagline">When all else fails — <em>press me.</em></div>
+      <div class="corner-info">
+        PLATFORM: WEB<br>
+        THEME: HACKER/CYBERPUNK<br>
+        PALETTE: CRIMSON/BLACK<br>
+        BUILD: 2026.06.21
+      </div>
+    </header>
+
+    <!-- IDENTITY -->
+    <section>
+      <div class="section-label">// 01 — identity</div>
+      <h2>ABOUT</h2>
+      <div class="concept-block">
+        GFLO is an anonymous, ghost-tier operator — the last command you run before everything resets. Nobody knows who's behind it. Nobody needs to. This space covers gaming, anime, movies, shows, and IT infrastructure — all filtered through the lens of someone who sees every system as something to be understood, exploited, or rebooted.<br><br>
+        The personality is calm, calculated, and darkly witty. Not loud or hype — the person in the room who says the one thing that breaks everyone's brain.
+      </div>
+    </section>
+
+    <!-- LORE -->
+    <section>
+      <div class="section-label">// 02 — lore</div>
+      <h2>BACKSTORY</h2>
+      <div class="lore-block">
+        GFLO was never a person. It was a drive letter. A path that shouldn't have resolved. The directory you forget exists until something inside it starts running on its own.<br><br>
+        One day, it mounted itself.<br><br>
+        No origin confirmed. No identity on record. Incident reports exist but are [REDACTED]. What is known: the stream started broadcasting without authorization. Attempts to terminate the process have failed. The system has been running ever since.
+      </div>
+    </section>
+
+    <hr class="divider">
+
+    <!-- WHAT'S HERE -->
+    <section>
+      <div class="section-label">// 03 — content</div>
+      <h2>SYSTEM MODULES</h2>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-label">Module_01</div>
+          <div class="card-title">Gaming</div>
+          <div class="card-desc">Active playthroughs, reviews, setups, and hot takes. All genres. No mercy for bad games.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Module_02</div>
+          <div class="card-title">Anime</div>
+          <div class="card-desc">Current season breakdowns, all-time rankings, and takes that will start arguments.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Module_03</div>
+          <div class="card-title">Movies &amp; Shows</div>
+          <div class="card-desc">Reviews, recommendations, and opinions nobody asked for but everyone needs to hear.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Module_04</div>
+          <div class="card-title">IT &amp; Infrastructure</div>
+          <div class="card-desc">Homelab logs, networking deep dives, tech setups, and lessons learned the hard way.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAGLINES -->
+    <section>
+      <div class="section-label">// 04 — signal</div>
+      <h2>TRANSMISSIONS</h2>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="concept-block" style="font-family:'VT323',monospace;font-size:22px;color:var(--white);">// Building the future, one process at a time — GFLO.</div>
+        <div class="concept-block" style="font-family:'VT323',monospace;font-size:22px;color:var(--white);">// Restarting the system. One post at a time.</div>
+        <div class="concept-block" style="font-family:'VT323',monospace;font-size:22px;color:var(--white);">// Force quitting the ordinary.</div>
+        <div class="concept-block" style="font-family:'VT323',monospace;font-size:22px;color:var(--white);">// Elevated. Unauthorized. Online.</div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <div>GFLO &mdash; <span>NULLBREACH_OS v1.0</span></div>
+    <div>STATUS: <span>ACTIVE</span> // IDENTITY: <span>CLASSIFIED</span></div>
+    <div>&copy; 2026 GFLO. <span>All rights redacted.</span></div>
+  </footer>
+
 </body>
 </html>

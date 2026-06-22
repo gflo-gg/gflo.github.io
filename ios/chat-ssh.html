@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFLO — Chat v2: SSH Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --red: #CC0000; --red-bright: #FF2020; --red-dim: #880000;
+    --green: #00FF88; --green-dim: #00AA55;
+    --cyan: #00DCFF; --cyan-dim: #0099BB;
+    --gold: #FFB800; --gold-dim: #AA7700;
+    --purple: #CC44FF; --purple-dim: #882299;
+    --white: #F0F0F0; --text: #CCCCCC; --text-dim: #555;
+    --bg: rgba(6,6,6,0.78);
+    --border: rgba(204,0,0,0.25);
+  }
+
+  body {
+    background: #0f0f1a url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23CC0000' fill-opacity='0.03'%3E%3Cpath d='M0 0h1v1H0zM20 20h1v1h-1z'/%3E%3C/g%3E%3C/svg%3E");
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 20px;
+    min-height: 100vh;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ── TERMINAL SHELL ── */
+  .terminal {
+    width: 285px;
+    max-height: 520px;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    backdrop-filter: blur(22px) saturate(1.4);
+    -webkit-backdrop-filter: blur(22px) saturate(1.4);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    filter: drop-shadow(0 4px 28px rgba(0,0,0,0.85));
+    overflow: hidden;
+  }
+
+  /* scanlines */
+  .terminal::before {
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:20;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 3px);
+  }
+
+  /* vignette */
+  .terminal::after {
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:19;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.35) 100%);
+  }
+
+  /* ── SSH HEADER ── */
+  .ssh-header {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,0,0,0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 8px 10px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ssh-header::after {
+    content:'';
+    position:absolute; bottom:0; left:0; right:0; height:1px;
+    background: linear-gradient(90deg, transparent, var(--red-dim), transparent);
+    animation: scanLine 3s linear infinite;
+  }
+
+  .ssh-line {
+    font-size: 10px;
+    line-height: 1.7;
+    letter-spacing: 0.5px;
+  }
+  .ssh-line .label  { color: var(--red-dim); }
+  .ssh-line .value  { color: var(--text); }
+  .ssh-line .ok     { color: var(--green); }
+  .ssh-line .warn   { color: var(--gold); }
+  .ssh-line .prompt { color: var(--red-bright); }
+  .ssh-line .cmd    { color: var(--white); }
+
+  /* ── CHAT OUTPUT ── */
+  .ssh-output {
+    flex: 1;
+    padding: 8px 8px 6px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    scrollbar-width: none;
+  }
+  .ssh-output::-webkit-scrollbar { display: none; }
+
+  /* ── MESSAGE ROW ── */
+  .ssh-msg {
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+    animation: termPrint 0.12s steps(1) forwards;
+    opacity: 0;
+    font-size: 11px;
+    line-height: 1.55;
+    flex-wrap: wrap;
+  }
+
+  .ssh-ts {
+    color: #2a2a2a;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    margin-right: 6px;
+    align-self: center;
+  }
+
+  .ssh-prefix { color: var(--red-dim); font-size:10px; flex-shrink:0; margin-right:2px; }
+
+  .ssh-role-tag {
+    font-size:9px; letter-spacing:1px; padding:0 4px;
+    border:1px solid; text-transform:uppercase;
+    flex-shrink:0; margin-right:4px; align-self:center;
+  }
+  .role-owner  { color:#CC44FF; border-color:rgba(136,34,153,0.45); background:rgba(204,68,255,0.07); }
+  .role-mod    { color:#00FF88; border-color:rgba(0,68,24,0.5);     background:rgba(0,255,136,0.06); }
+  .role-vip    { color:#FFB800; border-color:rgba(170,119,0,0.4);   background:rgba(255,184,0,0.06); }
+  .role-sub    { color:var(--red-bright); border-color:rgba(136,0,0,0.45); background:rgba(204,0,0,0.06); }
+
+  .ssh-user {
+    font-size:11px; letter-spacing:0.5px;
+    flex-shrink:0;
+    padding: 0 4px;
+    border: 1px solid;
+  }
+  .user-owner  { color:#CC44FF; border-color:rgba(136,34,153,0.35); background:rgba(204,68,255,0.05); }
+  .user-mod    { color:#00FF88; border-color:rgba(0,68,24,0.4);     background:rgba(0,255,136,0.05); }
+  .user-vip    { color:#FFB800; border-color:rgba(170,119,0,0.35);  background:rgba(255,184,0,0.05); }
+  .user-sub    { color:var(--red-bright); border-color:rgba(136,0,0,0.35); background:rgba(204,0,0,0.05); }
+  .user-viewer { color:var(--text); border-color:rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); }
+
+  .ssh-sep { color:#2a2a2a; margin:0 4px; font-size:10px; flex-shrink:0; }
+
+  .ssh-text { color:#888; word-break:break-word; flex:1; }
+  .ssh-text .emote { color:var(--red-dim); }
+
+  /* ── PROMPT LINE ── */
+  .ssh-prompt-line {
+    flex-shrink: 0;
+    padding: 5px 10px;
+    border-top: 1px solid var(--border);
+    background: rgba(8,0,0,0.5);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .prompt-sym { color:var(--red-bright); font-size:11px; }
+  .prompt-path { color:var(--red-dim); font-size:9px; letter-spacing:1px; }
+  .prompt-cursor {
+    width:7px; height:13px;
+    background:var(--red);
+    animation: cursorBlink 1s step-end infinite;
+    margin-left:2px;
+    opacity:0.8;
+  }
+
+  /* system messages */
+  .ssh-system {
+    font-size: 10px; letter-spacing:0.5px;
+    padding: 2px 0;
+    animation: termPrint 0.12s steps(1) forwards;
+    opacity: 0;
+  }
+  .sys-info  { color: #2a4a2a; }
+  .sys-info .sys-label { color: var(--green-dim); }
+  .sys-warn  { color: #4a3a00; }
+  .sys-warn .sys-label { color: var(--gold); }
+  .sys-err   { color: var(--red-dim); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes scanLine {
+    0%   { background-position: -200px 0; }
+    100% { background-position: calc(100% + 200px) 0; }
+  }
+  @keyframes termPrint {
+    from { opacity:0; }
+    to   { opacity:1; }
+  }
+  @keyframes cursorBlink {
+    0%,100%{opacity:0.8} 50%{opacity:0}
+  }
+</style>
+</head>
+<body>
+
+<div class="terminal">
+
+  <!-- SSH HEADER -->
+  <div class="ssh-header">
+    <div class="ssh-line">
+      <span class="label">Connected to  </span>
+      <span class="value">chat.twitch.tv:6697</span>
+      <span class="label">  via  </span>
+      <span class="ok">SSL/TLS ✓</span>
+    </div>
+    <div class="ssh-line">
+      <span class="label">Channel       </span>
+      <span class="prompt">#GFLO</span>
+      <span class="label">  status  </span>
+      <span class="ok">LIVE</span>
+    </div>
+    <div class="ssh-line">
+      <span class="label">Nodes online  </span>
+      <span class="warn" id="nodeCount">015</span>
+      <span class="label">  session  </span>
+      <span class="value" id="uptime">00:00:00</span>
+    </div>
+  </div>
+
+  <!-- CHAT OUTPUT -->
+  <div class="ssh-output" id="sshOutput"></div>
+
+  <!-- PROMPT -->
+  <div class="ssh-prompt-line">
+    <span class="prompt-sym">$</span>
+    <span class="prompt-path">GFLO@chat:/live/stream</span>
+    <div class="prompt-cursor"></div>
+  </div>
+
+</div>
+
+<script>
+const messages = [
+  { role:'owner',  user:'GFLO',    text:'System online. All nodes report in.' },
+  { role:'mod',    user:'R00tGuard',       text:'Chat active, system stable 👀' },
+  { role:'viewer', user:'xX_D4RKN0D3_Xx', text:'lets gooo finally online' },
+  { role:'sub',    user:'GhostPacket99',   text:'PogChamp the stream is LIVE' },
+  { role:'vip',    user:'SilentSH_',       text:'Ready for the tech talk today?' },
+  { role:'viewer', user:'netrunner42',     text:'first time here, this setup is insane' },
+  { role:'mod',    user:'KernelPanic_',    text:'Welcome everyone, lurkers too 👁' },
+  { role:'viewer', user:'void_ptr',        text:'that overlay tho... what did you use?' },
+  { role:'sub',    user:'PhantomTMP',      text:'HTML/CSS browser source probably lol' },
+  { role:'vip',    user:'SilentSH_',       text:'anyone else getting Matrix vibes rn' },
+  { role:'viewer', user:'packet_loss',     text:'GFLO lets gooo' },
+  { role:'mod',    user:'R00tGuard',       text:'!commands for the command list nodes' },
+  { role:'viewer', user:'malloc_void',     text:'bro typed !whoami and got a paragraph' },
+  { role:'sub',    user:'GhostPacket99',   text:'this is the best stream setup ive seen' },
+  { role:'viewer', user:'dark_bat_',       text:'coming from ShadowExec raid, hype 🔥' },
+];
+
+const roleTagClass = { owner:'role-owner', mod:'role-mod', vip:'role-vip', sub:'role-sub', viewer:null };
+const userClass    = { owner:'user-owner', mod:'user-mod', vip:'user-vip', sub:'user-sub', viewer:'user-viewer' };
+const roleLabel    = { owner:'OWNER', mod:'MOD', vip:'VIP', sub:'SUB', viewer:null };
+
+const out = document.getElementById('sshOutput');
+let idx = 0, nodeCount = 15, startTime = Date.now();
+
+// uptime ticker
+setInterval(() => {
+  const s = Math.floor((Date.now()-startTime)/1000);
+  const h = String(Math.floor(s/3600)).padStart(2,'0');
+  const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+  const sec = String(s%60).padStart(2,'0');
+  document.getElementById('uptime').textContent = `${h}:${m}:${sec}`;
+}, 1000);
+
+function getTS() {
+  const n = new Date();
+  return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+}
+
+function addSystemMsg(text, type='sys-info', labelText='INFO') {
+  const div = document.createElement('div');
+  div.className = `ssh-system ${type}`;
+  div.innerHTML = `<span class="sys-label">[${labelText}]</span> ${text}`;
+  out.appendChild(div);
+  scrollBottom();
+}
+
+function addMsg(data) {
+  const rc = roleTagClass[data.role];
+  const uc = userClass[data.role];
+  const rl = roleLabel[data.role];
+
+  const div = document.createElement('div');
+  div.className = 'ssh-msg';
+  div.innerHTML = `
+    <span class="ssh-ts">${getTS()}</span>
+    <span class="ssh-prefix">&gt;</span>
+    ${rc ? `<span class="ssh-role-tag ${rc}">${rl}</span>` : ''}
+    <span class="ssh-user ${uc}">${data.user}</span>
+    <span class="ssh-sep">│</span>
+    <span class="ssh-text">${data.text}</span>
+  `;
+  out.appendChild(div);
+
+  // prune
+  while (out.children.length > 16) {
+    const el = out.children[0];
+    el.style.transition = 'opacity 0.3s';
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 300);
+  }
+
+  nodeCount += Math.random() > 0.7 ? 1 : 0;
+  document.getElementById('nodeCount').textContent = String(nodeCount).padStart(3,'0');
+  scrollBottom();
+}
+
+function scrollBottom() {
+  out.scrollTop = out.scrollHeight;
+}
+
+// boot sequence
+addSystemMsg('Authenticating with IRC server...', 'sys-info', 'AUTH');
+setTimeout(() => addSystemMsg('Joined #GFLO — channel secured', 'sys-info', 'JOIN'), 600);
+setTimeout(() => addSystemMsg('15 nodes online — monitoring active', 'sys-warn', 'STAT'), 1100);
+
+// initial messages
+messages.slice(0,5).forEach((m,i) => setTimeout(() => addMsg(m), 1400 + i*700));
+idx = 5;
+
+function loop() {
+  // occasional system messages
+  if (Math.random() < 0.12) {
+    const sysMessages = [
+      ['New node connected from unknown origin', 'sys-info', 'CONN'],
+      ['Packet integrity check passed', 'sys-info', 'CHCK'],
+      ['Anomalous traffic pattern detected', 'sys-warn', 'WARN'],
+      ['Flood protection active', 'sys-warn', 'PROT'],
+    ];
+    const s = sysMessages[Math.floor(Math.random()*sysMessages.length)];
+    addSystemMsg(s[0], s[1], s[2]);
+  } else {
+    addMsg(messages[idx % messages.length]);
+    idx++;
+  }
+  setTimeout(loop, 1600 + Math.random() * 1600);
+}
+setTimeout(loop, 1400 + 5*700 + 1600);
+</script>
+</body>
+</html>

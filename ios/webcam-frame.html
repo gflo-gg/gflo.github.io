@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFLO — Webcam Frame</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --red:        #CC0000;
+    --red-bright: #FF2020;
+    --red-dim:    #880000;
+    --red-glow:   rgba(255,32,32,0.45);
+    --green:      #00FF88;
+    --white:      #F0F0F0;
+    --text:       #AAAAAA;
+    --text-dim:   #444444;
+    --bg:         rgba(8,0,0,0.72);
+    --border:     rgba(204,0,0,0.4);
+    --cam-w:      240px;
+    --cam-h:      320px;
+    --label-h:    32px;
+    --title-h:    22px;
+  }
+
+  html, body {
+    width: var(--cam-w);
+    height: calc(var(--cam-h) + var(--label-h) + var(--title-h));
+    overflow: hidden;
+    background: transparent;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ══════════════════════════
+     OUTER WRAPPER
+  ══════════════════════════ */
+  .cam-wrapper {
+    width: var(--cam-w);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    filter: drop-shadow(0 4px 20px rgba(0,0,0,0.85));
+  }
+
+  /* ══════════════════════════
+     TITLE BAR (top)
+  ══════════════════════════ */
+  .cam-titlebar {
+    height: var(--title-h);
+    background: linear-gradient(180deg, rgba(26,0,0,0.88) 0%, rgba(13,0,0,0.82) 100%);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    padding: 0 7px;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  /* shimmer */
+  .cam-titlebar::after {
+    content:'';
+    position:absolute; top:0; left:-100%; width:60%; height:100%;
+    background: linear-gradient(90deg, transparent, rgba(255,32,32,0.07), transparent);
+    animation: shimmer 4s linear infinite;
+  }
+
+  .title-icon {
+    font-family: 'VT323', monospace;
+    font-size: 13px;
+    color: var(--red-bright);
+    flex-shrink: 0;
+  }
+
+  .title-text {
+    font-size: 9px;
+    color: #888;
+    letter-spacing: 1px;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    animation: titleGlitch 7s steps(1) infinite;
+  }
+
+  .win-controls { display:flex; gap:3px; flex-shrink:0; }
+  .win-ctrl {
+    width: 12px; height: 10px;
+    border: 1px solid #333;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 6px; color: #444;
+  }
+  .win-ctrl.close { border-color:#440000; color:#660000; }
+
+  /* ══════════════════════════
+     CAM VIEWPORT
+  ══════════════════════════ */
+  .cam-viewport {
+    width: var(--cam-w);
+    height: var(--cam-h);
+    position: relative;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    background: rgba(4,0,0,0.3);
+  }
+
+  /* The actual transparent hole where OBS puts the webcam */
+  .cam-hole {
+    position: absolute;
+    inset: 6px;
+    background: transparent;
+  }
+
+  /* scanlines over cam */
+  .cam-viewport::before {
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:10;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+    );
+  }
+
+  /* vignette edges */
+  .cam-viewport::after {
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:9;
+    background:
+      linear-gradient(to right,  rgba(0,0,0,0.45) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.45) 100%),
+      linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.45) 100%);
+  }
+
+  /* ── CORNER BRACKETS ── */
+  .bracket { position:absolute; width:16px; height:16px; z-index:15; }
+  .br-tl { top:4px;  left:4px;  border-top:2px solid var(--red-bright); border-left:2px solid var(--red-bright); }
+  .br-tr { top:4px;  right:4px; border-top:2px solid var(--red-bright); border-right:2px solid var(--red-bright); }
+  .br-bl { bottom:4px; left:4px;  border-bottom:2px solid var(--red-bright); border-left:2px solid var(--red-bright); }
+  .br-br { bottom:4px; right:4px; border-bottom:2px solid var(--red-bright); border-right:2px solid var(--red-bright); }
+
+  /* bracket glow pulse */
+  .bracket { animation: bracketPulse 3s ease-in-out infinite; }
+
+  /* ── HUD ELEMENTS inside viewport ── */
+
+  /* top-left: process ID */
+  .hud-pid {
+    position: absolute;
+    top: 10px; left: 10px;
+    font-size: 8px;
+    color: var(--red-dim);
+    letter-spacing: 1px;
+    z-index: 12;
+    line-height: 1.6;
+  }
+
+  /* top-right: signal dot */
+  .hud-signal {
+    position: absolute;
+    top: 10px; right: 10px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 12;
+  }
+
+  .hud-signal-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px rgba(0,255,136,0.6);
+    animation: livePulse 1.6s ease-in-out infinite;
+  }
+
+  .hud-signal-text {
+    font-size: 7px;
+    color: #2a4a2a;
+    letter-spacing: 1px;
+  }
+
+  /* bottom-left: glitch corruption artifact */
+  .hud-corrupt {
+    position: absolute;
+    bottom: 10px; left: 10px;
+    font-size: 8px;
+    color: var(--red-dim);
+    letter-spacing: 1px;
+    z-index: 12;
+    animation: charCorrupt 5s steps(1) infinite;
+  }
+
+  /* bottom-right: frame counter */
+  .hud-frame {
+    position: absolute;
+    bottom: 10px; right: 10px;
+    font-size: 7px;
+    color: #2a2a2a;
+    letter-spacing: 1px;
+    z-index: 12;
+  }
+
+  /* ── GLITCH LINE ── */
+  .glitch-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 1px;
+    background: var(--red-bright);
+    opacity: 0;
+    z-index: 16;
+    animation: glitchSweep 8s linear infinite;
+  }
+
+  /* ══════════════════════════
+     LABEL BAR (bottom)
+  ══════════════════════════ */
+  .cam-label {
+    height: var(--label-h);
+    background: linear-gradient(180deg, rgba(13,0,0,0.85) 0%, rgba(8,0,0,0.90) 100%);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border);
+    border-top: 1px solid rgba(204,0,0,0.2);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  /* top accent line on label */
+  .cam-label::before {
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:1px;
+    background: linear-gradient(90deg, transparent, var(--red-dim), transparent);
+  }
+
+  .label-name {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    color: var(--white);
+    letter-spacing: 1px;
+    line-height: 1;
+    text-shadow: 0 0 8px rgba(255,255,255,0.1);
+    flex-shrink: 0;
+  }
+
+  .label-sep {
+    font-size: 10px;
+    color: var(--red-dim);
+    flex-shrink: 0;
+  }
+
+  .label-activity {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+  }
+
+  .activity-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--red-bright);
+    box-shadow: 0 0 6px var(--red-glow);
+    flex-shrink: 0;
+    animation: livePulse 1.4s ease-in-out infinite;
+  }
+
+  .activity-text {
+    font-size: 9px;
+    color: var(--red-bright);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 0 6px var(--red-glow);
+  }
+
+  /* ══════════════════════════
+     OUTER GLOW BORDER (sides)
+  ══════════════════════════ */
+  .cam-side-glow {
+    position: absolute;
+    top: var(--title-h);
+    left: 0; right: 0;
+    height: var(--cam-h);
+    pointer-events: none;
+    z-index: 20;
+    box-shadow: inset 2px 0 12px rgba(204,0,0,0.12), inset -2px 0 12px rgba(204,0,0,0.12);
+  }
+
+  /* ══════════════════════════
+     DEMO CONTROLS (OBS: remove)
+  ══════════════════════════ */
+  .demo-controls {
+    position: fixed;
+    top: 10px; right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 100;
+  }
+
+  .demo-btn {
+    background: #0C0C0C;
+    border: 1px solid #330000;
+    color: var(--red);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    padding: 5px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+
+  .demo-btn:hover { background: var(--red-dim); color: var(--white); }
+  .demo-btn.active { background: var(--red); color: #000; }
+
+  /* demo bg so you can see frame */
+  .demo-bg {
+    position: fixed;
+    inset: 0;
+    background: #1a1a2e;
+    z-index: -1;
+  }
+
+  /* ══════════════════════════
+     ANIMATIONS
+  ══════════════════════════ */
+  @keyframes shimmer {
+    0%   { left:-100%; }
+    100% { left:200%; }
+  }
+
+  @keyframes titleGlitch {
+    0%,89%,100% { transform:none; color:#888; }
+    90% { transform:translateX(2px); color:var(--red-bright); }
+    91% { transform:translateX(-1px); color:#888; }
+    92% { transform:none; }
+  }
+
+  @keyframes bracketPulse {
+    0%,100% { opacity:0.6; }
+    50%      { opacity:1; box-shadow: 0 0 6px var(--red-glow); }
+  }
+
+  @keyframes livePulse {
+    0%,100% { opacity:1; }
+    50%      { opacity:0.4; }
+  }
+
+  @keyframes charCorrupt {
+    0%,88%,100% { opacity:1; letter-spacing:1px; color:var(--red-dim); }
+    89% { opacity:0.3; letter-spacing:3px; }
+    90% { opacity:1; }
+    94% { color:var(--red-bright); letter-spacing:1px; }
+    95% { opacity:0.5; }
+    96% { opacity:1; color:var(--red-dim); }
+  }
+
+  @keyframes glitchSweep {
+    0%   { top:-2px; opacity:0; }
+    2%   { opacity:0.6; }
+    8%   { top:100%; opacity:0; }
+    100% { top:100%; opacity:0; }
+  }
+
+  @keyframes frameCount {
+    from { content: '000000'; }
+    to   { content: '999999'; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Demo background (remove in OBS) -->
+<div class="demo-bg"></div>
+
+<!-- Demo controls (remove in OBS) -->
+<div class="demo-controls">
+  <button class="demo-btn active" onclick="setActivity('GAMING', this)">GAMING</button>
+  <button class="demo-btn" onclick="setActivity('TECH TALK', this)">TECH TALK</button>
+  <button class="demo-btn" onclick="setActivity('IRL', this)">IRL</button>
+  <button class="demo-btn" onclick="setActivity('CODING', this)">CODING</button>
+  <button class="demo-btn" onclick="setActivity('BRB', this)">BRB</button>
+</div>
+
+<div class="cam-wrapper">
+
+  <!-- SIDE GLOW -->
+  <div class="cam-side-glow"></div>
+
+  <!-- TITLE BAR -->
+  <div class="cam-titlebar">
+    <div class="title-icon">⚡</div>
+    <div class="title-text">webcam_feed.exe — PID:3L</div>
+    <div class="win-controls">
+      <div class="win-ctrl">_</div>
+      <div class="win-ctrl">□</div>
+      <div class="win-ctrl close">✕</div>
+    </div>
+  </div>
+
+  <!-- CAM VIEWPORT -->
+  <div class="cam-viewport">
+
+    <!-- transparent hole for webcam -->
+    <div class="cam-hole"></div>
+
+    <!-- corner brackets -->
+    <div class="bracket br-tl"></div>
+    <div class="bracket br-tr"></div>
+    <div class="bracket br-bl"></div>
+    <div class="bracket br-br"></div>
+
+    <!-- HUD overlays -->
+    <div class="hud-pid">
+      PID:3L<br>
+      SRC:CAM_0
+    </div>
+
+    <div class="hud-signal">
+      <div class="hud-signal-dot"></div>
+      <div class="hud-signal-text">LIVE</div>
+    </div>
+
+    <div class="hud-corrupt" id="hudCorrupt">ERR_0xCC▓▓</div>
+
+    <div class="hud-frame" id="hudFrame">FRM:000000</div>
+
+    <!-- glitch sweep line -->
+    <div class="glitch-line"></div>
+
+  </div>
+
+  <!-- LABEL BAR -->
+  <div class="cam-label">
+    <div class="label-name">GFLO</div>
+    <div class="label-sep">//</div>
+    <div class="label-activity">
+      <div class="activity-dot"></div>
+      <div class="activity-text" id="activityText">GAMING</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── ACTIVITY SWITCHER ──
+  function setActivity(label, btn) {
+    document.getElementById('activityText').textContent = label;
+    document.querySelectorAll('.demo-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  // ── FRAME COUNTER ──
+  let frame = 0;
+  setInterval(() => {
+    frame++;
+    document.getElementById('hudFrame').textContent = 'FRM:' + String(frame).padStart(6,'0');
+  }, 33); // ~30fps
+
+  // ── CORRUPT STRING RANDOMIZER ──
+  const corruptStrings = [
+    'ERR_0xCC▓▓',
+    'ERR_0x▓▓00',
+    'SIG:▓▓FAULT',
+    'NULL_0x3L▓',
+    'ERR_▓▓CC00',
+  ];
+  setInterval(() => {
+    const el = document.getElementById('hudCorrupt');
+    el.textContent = corruptStrings[Math.floor(Math.random() * corruptStrings.length)];
+  }, 3200);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFLO — Alert Box v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --red: #CC0000;
+    --red-bright: #FF2020;
+    --red-dim: #880000;
+    --red-glow: rgba(255, 32, 32, 0.5);
+    --black: #080808;
+    --panel: #0C0C0C;
+    --panel-light: #141414;
+    --border: #2a2a2a;
+    --text: #CCCCCC;
+    --white: #F0F0F0;
+    --titlebar-h: 22px;
+  }
+
+  body {
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ===================== */
+  /* DEMO CONTROLS */
+  /* ===================== */
+  .demo-controls {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 1000;
+  }
+
+  .demo-btn {
+    background: #0C0C0C;
+    border: 1px solid #330000;
+    color: var(--red);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 8px 16px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .demo-btn:hover { background: var(--red-dim); color: var(--white); }
+  .demo-btn.active { background: var(--red); color: #000; }
+
+  /* ===================== */
+  /* WINDOW WRAPPER */
+  /* ===================== */
+  .window-wrapper {
+    position: relative;
+    width: 380px;
+    filter: drop-shadow(0 4px 24px rgba(0,0,0,0.7));
+  }
+
+  /* ===================== */
+  /* TITLE BAR */
+  /* ===================== */
+  .win-titlebar {
+    height: var(--titlebar-h);
+    background: linear-gradient(180deg, rgba(26,0,0,0.72) 0%, rgba(13,0,0,0.68) 100%);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid rgba(136,0,0,0.5);
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
+
+    /* Hidden by default — assembled in */
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+
+  .win-titlebar.show {
+    animation: assembleBar 0.15s steps(1) forwards;
+  }
+
+  /* Shimmer on titlebar */
+  .win-titlebar::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,32,32,0.08), transparent);
+    animation: shimmer 3s linear infinite;
+  }
+
+  .win-title-icon {
+    font-family: 'VT323', monospace;
+    font-size: 13px;
+    color: var(--red-bright);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .win-title-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: #aaa;
+    letter-spacing: 1px;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .win-title-text .corrupted {
+    color: var(--red-dim);
+    animation: charCorrupt 0.8s steps(1) infinite;
+  }
+
+  /* Window control buttons */
+  .win-controls {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .win-ctrl {
+    width: 13px;
+    height: 11px;
+    border: 1px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    color: #555;
+    cursor: default;
+    font-family: 'Share Tech Mono', monospace;
+    transition: all 0.1s;
+    position: relative;
+  }
+
+  .win-ctrl:hover { border-color: var(--red-dim); color: var(--red); }
+
+  .win-ctrl.close {
+    border-color: #440000;
+    color: #660000;
+  }
+
+  .win-ctrl.close:hover {
+    background: var(--red);
+    border-color: var(--red-bright);
+    color: #000;
+  }
+
+  /* ===================== */
+  /* WINDOW BODY */
+  /* ===================== */
+  .win-body {
+    background: rgba(12,12,12,0.65);
+    backdrop-filter: blur(20px) saturate(1.3);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    border: 1px solid rgba(136,0,0,0.4);
+    border-top: none;
+    position: relative;
+    overflow: hidden;
+
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+
+  .win-body.show {
+    animation: assembleBody 0.2s steps(1) forwards;
+  }
+
+  /* Scanlines */
+  .win-body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .win-body::after { content: none; }
+
+  /* ===================== */
+  /* MENU BAR */
+  /* ===================== */
+  .win-menubar {
+    height: 18px;
+    background: rgba(20,20,20,0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 12px;
+    opacity: 0;
+  }
+
+  .win-menubar.show {
+    animation: fadeInStep 0.1s steps(1) forwards;
+  }
+
+  .win-menu-item {
+    font-size: 9px;
+    color: #444;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: default;
+    padding: 2px 4px;
+    transition: all 0.1s;
+  }
+
+  .win-menu-item:hover { background: rgba(204,0,0,0.1); color: var(--red-dim); }
+
+  .win-menu-item.corrupted-menu {
+    color: var(--red-dim);
+    animation: charCorrupt 1.2s steps(1) infinite;
+  }
+
+  /* ===================== */
+  /* CONTENT AREA */
+  /* ===================== */
+  .win-content {
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    opacity: 0;
+  }
+
+  .win-content.show {
+    animation: fadeInStep 0.1s steps(1) forwards;
+  }
+
+  /* Error icon area */
+  .win-alert-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--red-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'VT323', monospace;
+    font-size: 24px;
+    color: var(--red-bright);
+    position: relative;
+    background: rgba(204,0,0,0.05);
+  }
+
+  .win-alert-icon::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 1px solid rgba(204,0,0,0.2);
+  }
+
+  .win-alert-icon.pulse {
+    animation: iconGlow 1.5s ease-in-out infinite;
+  }
+
+  /* Text content */
+  .win-text-area {
+    flex: 1;
+  }
+
+  .win-error-code {
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: var(--red-dim);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .win-alert-title {
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    color: var(--white);
+    line-height: 1.1;
+    margin-bottom: 6px;
+    text-shadow: 0 0 10px rgba(255,255,255,0.1);
+  }
+
+  .win-alert-body {
+    font-size: 10px;
+    color: #666;
+    line-height: 1.7;
+    letter-spacing: 0.5px;
+  }
+
+  .win-alert-body .highlight {
+    color: var(--red-dim);
+  }
+
+  /* Username accent — subtle but recognizable */
+  .win-alert-body .username {
+    color: var(--white);
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 1px;
+    padding: 0 5px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ===================== */
+  /* DIVIDER */
+  /* ===================== */
+  .win-divider {
+    height: 1px;
+    background: #1a1a1a;
+    margin: 0 20px;
+    opacity: 0;
+  }
+
+  .win-divider.show {
+    animation: fadeInStep 0.1s steps(1) forwards;
+  }
+
+  /* ===================== */
+  /* BUTTON ROW */
+  /* ===================== */
+  .win-buttons {
+    padding: 10px 16px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    opacity: 0;
+  }
+
+  .win-buttons.show {
+    animation: fadeInStep 0.1s steps(1) forwards;
+  }
+
+  .win-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border: 1px solid #333;
+    background: #111;
+    color: #555;
+    cursor: default;
+    transition: all 0.1s;
+  }
+
+  .win-btn:hover { border-color: var(--red-dim); color: var(--red-dim); }
+
+  .win-btn.primary {
+    border-color: var(--red-dim);
+    color: var(--red);
+    background: rgba(204,0,0,0.08);
+  }
+
+  .win-btn.primary:hover {
+    background: var(--red);
+    color: #000;
+    border-color: var(--red-bright);
+  }
+
+  /* ===================== */
+  /* STATUS BAR */
+  /* ===================== */
+  .win-statusbar {
+    height: 16px;
+    background: rgba(20,20,20,0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 12px;
+    opacity: 0;
+  }
+
+  .win-statusbar.show {
+    animation: fadeInStep 0.1s steps(1) forwards;
+  }
+
+  .win-status-item {
+    font-size: 8px;
+    color: #333;
+    letter-spacing: 1px;
+  }
+
+  .win-status-item.active { color: var(--red-dim); }
+
+  /* Progress bar in status */
+  .win-status-progress {
+    flex: 1;
+    height: 2px;
+    background: #1a1a1a;
+    margin-left: auto;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .win-status-progress-fill {
+    height: 100%;
+    background: var(--red-dim);
+    width: 100%;
+    transform-origin: left;
+    box-shadow: 0 0 6px var(--red-glow);
+  }
+
+  .win-status-progress-fill.draining {
+    animation: progressDrain 5.5s linear forwards;
+  }
+
+  /* ===================== */
+  /* GLITCH EFFECTS */
+  /* ===================== */
+  .glitch-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 20;
+    overflow: hidden;
+  }
+
+  .glitch-slice {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    background: inherit;
+    opacity: 0;
+  }
+
+  /* ===================== */
+  /* CORRUPTION ARTIFACTS */
+  /* ===================== */
+  .corrupt-pixel {
+    position: absolute;
+    background: var(--red-bright);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 15;
+  }
+
+  /* ===================== */
+  /* CORNER BRACKETS */
+  /* ===================== */
+  .bracket {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    z-index: 12;
+    opacity: 0.4;
+  }
+
+  .bracket-tl { top: -1px; left: -1px; border-top: 1px solid var(--red-bright); border-left: 1px solid var(--red-bright); }
+  .bracket-tr { top: -1px; right: -1px; border-top: 1px solid var(--red-bright); border-right: 1px solid var(--red-bright); }
+  .bracket-bl { bottom: -1px; left: -1px; border-bottom: 1px solid var(--red-bright); border-left: 1px solid var(--red-bright); }
+  .bracket-br { bottom: -1px; right: -1px; border-bottom: 1px solid var(--red-bright); border-right: 1px solid var(--red-bright); }
+
+  /* ===================== */
+  /* TYPE COLORS */
+  /* ===================== */
+  .type-follow .win-titlebar { background: linear-gradient(180deg, rgba(0,26,8,0.72) 0%, rgba(0,13,4,0.68) 100%); border-color: rgba(0,85,34,0.6); }
+  .type-follow .win-titlebar::after { background: linear-gradient(90deg, transparent, rgba(0,255,136,0.06), transparent); }
+  .type-follow .win-body { border-color: rgba(0,68,24,0.5); }
+  .type-follow .win-alert-icon { color: #00FF88; border-color: #004418; background: rgba(0,255,136,0.04); }
+  .type-follow .win-alert-icon::before { border-color: rgba(0,170,85,0.2); }
+  .type-follow .win-error-code { color: #005522; }
+  .type-follow .win-btn.primary { border-color: #004418; color: #00AA55; background: rgba(0,255,136,0.05); }
+  .type-follow .win-status-item.active { color: #004418; }
+  .type-follow .win-status-progress-fill { background: #00AA55; box-shadow: 0 0 6px rgba(0,255,136,0.4); }
+  .type-follow .bracket-tl, .type-follow .bracket-tr, .type-follow .bracket-bl, .type-follow .bracket-br { border-color: #00AA55; }
+  .type-follow .win-title-icon { color: #00FF88; }
+  .type-follow .win-alert-body .highlight { color: #005522; }
+  .type-follow .win-ctrl.close { border-color: #003311; color: #004418; }
+
+  .type-raid .win-titlebar { background: linear-gradient(180deg, rgba(26,8,0,0.72) 0%, rgba(13,4,0,0.68) 100%); border-color: rgba(85,51,0,0.6); }
+  .type-raid .win-titlebar::after { background: linear-gradient(90deg, transparent, rgba(255,136,0,0.06), transparent); }
+  .type-raid .win-body { border-color: rgba(68,51,0,0.5); }
+  .type-raid .win-alert-icon { color: #FF8800; border-color: #443300; background: rgba(255,136,0,0.04); }
+  .type-raid .win-alert-icon::before { border-color: rgba(170,85,0,0.2); }
+  .type-raid .win-error-code { color: #553300; }
+  .type-raid .win-btn.primary { border-color: #443300; color: #AA6600; background: rgba(255,136,0,0.05); }
+  .type-raid .win-status-item.active { color: #553300; }
+  .type-raid .win-status-progress-fill { background: #AA6600; box-shadow: 0 0 6px rgba(255,136,0,0.4); }
+  .type-raid .bracket-tl, .type-raid .bracket-tr, .type-raid .bracket-bl, .type-raid .bracket-br { border-color: #AA6600; }
+  .type-raid .win-title-icon { color: #FF8800; }
+  .type-raid .win-alert-body .highlight { color: #553300; }
+  .type-raid .win-ctrl.close { border-color: #331100; color: #553300; }
+
+  /* BITS — cyan/electric blue */
+  .type-bits .win-titlebar { background: linear-gradient(180deg, rgba(0,26,26,0.72) 0%, rgba(0,13,13,0.68) 100%); border-color: rgba(0,85,102,0.6); }
+  .type-bits .win-titlebar::after { background: linear-gradient(90deg, transparent, rgba(0,220,255,0.06), transparent); }
+  .type-bits .win-body { border-color: rgba(0,68,85,0.5); }
+  .type-bits .win-alert-icon { color: #00DCFF; border-color: #004455; background: rgba(0,220,255,0.04); }
+  .type-bits .win-alert-icon::before { border-color: rgba(0,180,220,0.2); }
+  .type-bits .win-error-code { color: #005566; }
+  .type-bits .win-btn.primary { border-color: #004455; color: #00AACC; background: rgba(0,220,255,0.05); }
+  .type-bits .win-status-item.active { color: #004455; }
+  .type-bits .win-status-progress-fill { background: #00AACC; box-shadow: 0 0 6px rgba(0,220,255,0.4); }
+  .type-bits .bracket-tl, .type-bits .bracket-tr, .type-bits .bracket-bl, .type-bits .bracket-br { border-color: #00AACC; }
+  .type-bits .win-title-icon { color: #00DCFF; }
+  .type-bits .win-alert-body .highlight { color: #005566; }
+  .type-bits .win-ctrl.close { border-color: #003344; color: #004455; }
+
+  /* HYPE TRAIN — intense pulsing red/white — stays on brand but escalated */
+  .type-hype .win-titlebar { background: linear-gradient(180deg, #1a0000 0%, #0d0000 100%); border-color: var(--red); }
+  .type-hype .win-titlebar::after { background: linear-gradient(90deg, transparent, rgba(255,32,32,0.15), transparent); animation: shimmer 1s linear infinite; }
+  .type-hype .win-body { border-color: var(--red); box-shadow: 0 0 20px rgba(255,32,32,0.15); }
+  .type-hype .win-alert-icon { color: var(--red-bright); border-color: var(--red); background: rgba(204,0,0,0.1); animation: hypePulse 0.6s ease-in-out infinite; }
+  .type-hype .win-alert-icon::before { border-color: rgba(255,32,32,0.3); }
+  .type-hype .win-error-code { color: var(--red); }
+  .type-hype .win-btn.primary { border-color: var(--red); color: var(--red-bright); background: rgba(204,0,0,0.12); }
+  .type-hype .win-status-item.active { color: var(--red-bright); animation: charCorrupt 0.5s steps(1) infinite; }
+  .type-hype .win-status-progress-fill { background: linear-gradient(90deg, var(--red-dim), var(--red-bright)); box-shadow: 0 0 10px var(--red-glow); }
+  .type-hype .bracket-tl, .type-hype .bracket-tr, .type-hype .bracket-bl, .type-hype .bracket-br { border-color: var(--red-bright); opacity: 0.8; animation: bracketPulse 0.8s ease-in-out infinite; }
+  .type-hype .win-title-icon { color: var(--red-bright); animation: charCorrupt 0.7s steps(1) infinite; }
+  .type-hype .win-alert-body .highlight { color: var(--red-bright); }
+  .type-hype .win-ctrl.close { border-color: var(--red-dim); color: var(--red); }
+  .type-hype .win-alert-title { animation: titleHype 0.9s steps(1) infinite; }
+
+  @keyframes hypePulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255,32,32,0.4); }
+    50% { box-shadow: 0 0 24px rgba(255,32,32,0.9), inset 0 0 12px rgba(204,0,0,0.2); }
+  }
+
+  @keyframes bracketPulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes titleHype {
+    0%, 80%, 100% { color: var(--white); text-shadow: none; }
+    85% { color: var(--red-bright); text-shadow: 0 0 10px var(--red-glow); }
+    90% { color: var(--white); }
+    95% { color: var(--red-bright); text-shadow: 0 0 16px var(--red-glow); }
+  }
+
+  /* ===================== */
+  /* ANIMATIONS */
+  /* ===================== */
+  @keyframes assembleBar {
+    0% { opacity: 0; transform: scaleY(0); }
+    100% { opacity: 1; transform: scaleY(1); }
+  }
+
+  @keyframes assembleBody {
+    0% { opacity: 0; transform: scaleY(0); }
+    100% { opacity: 1; transform: scaleY(1); }
+  }
+
+  @keyframes fadeInStep {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 200%; }
+  }
+
+  @keyframes charCorrupt {
+    0%, 85%, 100% { opacity: 1; color: inherit; }
+    86% { opacity: 0.3; letter-spacing: 3px; }
+    87% { opacity: 1; }
+    92% { color: var(--red-bright); }
+    93% { opacity: 0.5; }
+    94% { opacity: 1; }
+  }
+
+  @keyframes iconGlow {
+    0%, 100% { box-shadow: 0 0 8px rgba(204,0,0,0.3); }
+    50% { box-shadow: 0 0 20px rgba(255,32,32,0.6), inset 0 0 10px rgba(204,0,0,0.1); }
+  }
+
+  @keyframes progressDrain {
+    0% { transform: scaleX(1); }
+    100% { transform: scaleX(0); }
+  }
+
+  @keyframes windowExit {
+    0% { opacity: 1; transform: scale(1); filter: blur(0); }
+    20% { opacity: 1; transform: scale(1.02); filter: blur(0); }
+    40% { opacity: 0.6; transform: scale(0.98) skewX(2deg); filter: blur(1px) brightness(2); }
+    60% { opacity: 0.3; transform: scale(0.95) skewX(-1deg); filter: blur(2px); }
+    100% { opacity: 0; transform: scale(0.9) scaleY(0.1); filter: blur(4px) brightness(0); }
+  }
+
+  @keyframes glitchShake {
+    0%, 100% { transform: translate(0); }
+    10% { transform: translate(-2px, 1px); }
+    20% { transform: translate(2px, -1px); }
+    30% { transform: translate(-1px, 2px); }
+    40% { transform: translate(1px, -2px); }
+    50% { transform: translate(-2px, 0); }
+    60% { transform: translate(2px, 1px); }
+    70% { transform: translate(0, -1px); }
+    80% { transform: translate(-1px, 0); }
+    90% { transform: translate(1px, 1px); }
+  }
+
+  .glitch-shake {
+    animation: glitchShake 0.3s linear !important;
+  }
+
+  @keyframes pixelCorrupt {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 0.8; }
+  }
+
+  /* Title blink on corruption */
+  @keyframes titleGlitch {
+    0%, 89%, 100% { clip-path: none; transform: none; color: #aaa; }
+    90% { clip-path: inset(0 0 60% 0); transform: translateX(3px); color: var(--red-bright); }
+    91% { clip-path: inset(40% 0 0 0); transform: translateX(-3px); color: #aaa; }
+    92% { clip-path: none; transform: none; }
+    96% { color: var(--red-dim); }
+    97% { color: #aaa; }
+  }
+
+  .win-title-text {
+    animation: titleGlitch 4s steps(1) infinite;
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-controls">
+  <button class="demo-btn active" onclick="triggerAlert('follow', this)">[ FOLLOW ]</button>
+  <button class="demo-btn" onclick="triggerAlert('sub', this)">[ SUB ]</button>
+  <button class="demo-btn" onclick="triggerAlert('raid', this)">[ RAID ]</button>
+  <button class="demo-btn" onclick="triggerAlert('bits', this)">[ BITS ]</button>
+  <button class="demo-btn" onclick="triggerAlert('hype', this)">[ HYPE ]</button>
+</div>
+
+<div class="window-wrapper" id="windowWrapper">
+  <div class="glitch-container" id="glitchContainer"></div>
+  <div class="bracket bracket-tl"></div>
+  <div class="bracket bracket-tr"></div>
+  <div class="bracket bracket-bl"></div>
+  <div class="bracket bracket-br"></div>
+
+  <!-- TITLE BAR -->
+  <div class="win-titlebar" id="winTitlebar">
+    <div class="win-title-icon" id="winTitleIcon">⚠</div>
+    <div class="win-title-text" id="winTitleText">GFLO_OS — system_alert.exe</div>
+    <div class="win-controls">
+      <div class="win-ctrl">_</div>
+      <div class="win-ctrl">□</div>
+      <div class="win-ctrl close">✕</div>
+    </div>
+  </div>
+
+  <!-- WINDOW BODY -->
+  <div class="win-body" id="winBody">
+
+    <!-- MENU BAR -->
+    <div class="win-menubar" id="winMenubar">
+      <div class="win-menu-item">File</div>
+      <div class="win-menu-item corrupted-menu" id="menuCorrupt">Err█r</div>
+      <div class="win-menu-item">View</div>
+      <div class="win-menu-item">Help</div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="win-content" id="winContent">
+      <div class="win-alert-icon pulse" id="winIcon">!</div>
+      <div class="win-text-area">
+        <div class="win-error-code" id="winErrorCode">ERR_0x00CC0000 // EVENT_TRIGGER</div>
+        <div class="win-alert-title" id="winAlertTitle">Loading...</div>
+        <div class="win-alert-body" id="winAlertBody">Initializing process...</div>
+      </div>
+    </div>
+
+    <!-- DIVIDER -->
+    <div class="win-divider" id="winDivider"></div>
+
+    <!-- BUTTONS -->
+    <div class="win-buttons" id="winButtons">
+      <div class="win-btn">Ignore</div>
+      <div class="win-btn">Dismiss</div>
+      <div class="win-btn primary" id="winPrimaryBtn">[ OK ]</div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="win-statusbar" id="winStatusbar">
+      <div class="win-status-item active" id="statusText">PROCESS ACTIVE</div>
+      <div class="win-status-item" id="statusPid">PID: 3L</div>
+      <div class="win-status-progress">
+        <div class="win-status-progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+  </div><!-- /win-body -->
+</div>
+
+<script>
+  const alertData = {
+    follow: {
+      typeClass: 'type-follow',
+      titleIcon: '+',
+      titleText: 'GFLO_OS — node_connected.exe',
+      errorCode: 'EVT_0x00FF88A1 // NEW_NODE_DETECTED',
+      icon: '+1',
+      title: 'New Node Detected',
+      body: 'Incoming connection from <span class="username">xX_D4RKN0D3_Xx</span>.<br>Identity unverified. Privileges: <span class="highlight">STANDARD</span>.<br>Connection established. Welcome to the network.',
+      primaryBtn: '[ ACCEPT ]',
+      statusText: 'NODE CONNECTING',
+      statusPid: 'PID: F0L',
+      menuCorrupt: 'N0de█',
+    },
+    sub: {
+      typeClass: '',
+      titleIcon: '▲',
+      titleText: 'GFLO_OS — privilege_escalation.exe',
+      errorCode: 'EVT_0xCC0000B2 // TRUSTED_PROCESS_ADDED',
+      icon: '▲',
+      title: 'Trusted Process Added',
+      body: 'User <span class="username">GhostPacket99</span> has been elevated.<br>Tier: <span class="highlight">1</span> — Privileges granted: ELEVATED.<br>System integrity maintained. Thank you, Node.',
+      primaryBtn: '[ CONFIRM ]',
+      statusText: 'PRIVILEGE ESCALATING',
+      statusPid: 'PID: SUB',
+      menuCorrupt: 'Err█r',
+    },
+    raid: {
+      typeClass: 'type-raid',
+      titleIcon: '!!',
+      titleText: 'GFLO_OS — breach_detected.exe',
+      errorCode: 'ERR_0xFF8800C3 // BREACH_DETECTED',
+      icon: '!!',
+      title: 'Breach Detected',
+      body: 'Incoming flood from <span class="username">ShadowExec</span>.<br>Node count: <span class="highlight">47</span> — Threat level: HIGH.<br>Containment protocol active. Assimilating...',
+      primaryBtn: '[ ASSIMILATE ]',
+      statusText: 'BREACH IN PROGRESS',
+      statusPid: 'PID: R41D',
+      menuCorrupt: 'Br█ach',
+    },
+    bits: {
+      typeClass: 'type-bits',
+      titleIcon: '◈',
+      titleText: 'GFLO_OS — resource_injection.exe',
+      errorCode: 'EVT_0x00DCFFB4 // DATA_PACKET_RECEIVED',
+      icon: '◈',
+      title: 'Resource Injection',
+      body: '<span class="highlight">500</span> bits injected by <span class="username">VoidPacket_99</span>.<br>Signal strength: <span class="highlight">BOOSTED</span>.<br>Processing packet. Runtime allocation updated.',
+      primaryBtn: '[ ALLOCATE ]',
+      statusText: 'PACKET PROCESSING',
+      statusPid: 'PID: B1T5',
+      menuCorrupt: 'D4ta█',
+    },
+    hype: {
+      typeClass: 'type-hype',
+      titleIcon: '▓',
+      titleText: 'GFLO_OS — critical_load.exe',
+      errorCode: 'ERR_0xCC0000FF // CRITICAL_SYSTEM_LOAD',
+      icon: '!!',
+      title: 'Critical Load Detected',
+      body: 'System stress at <span class="highlight">78%</span> — Nodes pushing limits.<br>Hype Train Level: <span class="highlight">3</span> — OVERLOAD IMMINENT.<br>Stability: COMPROMISED. Hold the line.',
+      primaryBtn: '[ HOLD ]',
+      statusText: 'SYSTEM OVERLOADING',
+      statusPid: 'PID: HYP3',
+      menuCorrupt: 'CR1T█',
+    }
+  };
+
+  let isAnimating = false;
+  let dismissTimeout = null;
+  let currentType = null;
+
+  function triggerAlert(type, btn) {
+    document.querySelectorAll('.demo-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    if (isAnimating) return;
+
+    if (currentType !== null) {
+      dismissWindow(() => buildWindow(type));
+    } else {
+      buildWindow(type);
+    }
+  }
+
+  function buildWindow(type) {
+    isAnimating = true;
+    currentType = type;
+    const data = alertData[type];
+    const wrapper = document.getElementById('windowWrapper');
+
+    // Set type class
+    wrapper.className = 'window-wrapper ' + data.typeClass;
+
+    // Set content
+    document.getElementById('winTitleIcon').textContent = data.titleIcon;
+    document.getElementById('winTitleText').textContent = data.titleText;
+    document.getElementById('winErrorCode').textContent = data.errorCode;
+    document.getElementById('winIcon').textContent = data.icon;
+    document.getElementById('winAlertTitle').textContent = data.title;
+    document.getElementById('winAlertBody').innerHTML = data.body;
+    document.getElementById('winPrimaryBtn').textContent = data.primaryBtn;
+    document.getElementById('statusText').textContent = data.statusText;
+    document.getElementById('statusPid').textContent = data.statusPid;
+    document.getElementById('menuCorrupt').textContent = data.menuCorrupt;
+
+    // Reset progress
+    const fill = document.getElementById('progressFill');
+    fill.className = 'win-status-progress-fill';
+    fill.style.transform = 'scaleX(1)';
+
+    // Reset all elements
+    const elements = ['winTitlebar','winBody','winMenubar','winContent','winDivider','winButtons','winStatusbar'];
+    elements.forEach(id => {
+      const el = document.getElementById(id);
+      el.className = el.className.replace(' show','').replace('show','').trim();
+      void el.offsetWidth; // force reflow
+    });
+
+    // Assemble piece by piece
+    const steps = [
+      { id: 'winTitlebar', delay: 0, cls: 'show' },
+      { id: 'winBody',     delay: 180, cls: 'show' },
+      { id: 'winMenubar',  delay: 280, cls: 'show' },
+      { id: 'winContent',  delay: 400, cls: 'show' },
+      { id: 'winDivider',  delay: 520, cls: 'show' },
+      { id: 'winButtons',  delay: 580, cls: 'show' },
+      { id: 'winStatusbar',delay: 640, cls: 'show' },
+    ];
+
+    steps.forEach(step => {
+      setTimeout(() => {
+        const el = document.getElementById(step.id);
+        el.classList.add(step.cls);
+      }, step.delay);
+    });
+
+    // Corruption glitch mid-assembly
+    setTimeout(() => triggerCorruption(), 320);
+    setTimeout(() => triggerCorruption(), 550);
+
+    // Start drain after fully assembled
+    setTimeout(() => {
+      fill.classList.add('draining');
+      isAnimating = false;
+
+      // Random glitches while visible
+      scheduleRandomGlitch();
+    }, 800);
+
+    // Auto dismiss
+    if (dismissTimeout) clearTimeout(dismissTimeout);
+    dismissTimeout = setTimeout(() => dismissWindow(), 6500);
+  }
+
+  function dismissWindow(callback) {
+    const wrapper = document.getElementById('windowWrapper');
+    if (dismissTimeout) clearTimeout(dismissTimeout);
+
+    // Final corruption burst
+    triggerCorruption();
+    setTimeout(triggerCorruption, 80);
+
+    wrapper.style.animation = 'windowExit 0.5s cubic-bezier(0.7,0,0.84,0) forwards';
+
+    setTimeout(() => {
+      wrapper.style.animation = '';
+
+      // Reset all
+      const elements = ['winTitlebar','winBody','winMenubar','winContent','winDivider','winButtons','winStatusbar'];
+      elements.forEach(id => {
+        const el = document.getElementById(id);
+        el.className = el.className.replace(' show','').replace('show','').trim();
+      });
+
+      currentType = null;
+      isAnimating = false;
+
+      if (callback) setTimeout(callback, 100);
+    }, 520);
+  }
+
+  function triggerCorruption() {
+    const wrapper = document.getElementById('windowWrapper');
+    wrapper.classList.add('glitch-shake');
+    setTimeout(() => wrapper.classList.remove('glitch-shake'), 300);
+
+    // Spawn corrupt pixels
+    const container = document.getElementById('glitchContainer');
+    for (let i = 0; i < 6; i++) {
+      const px = document.createElement('div');
+      px.className = 'corrupt-pixel';
+      const w = 2 + Math.random() * 60;
+      const h = 1 + Math.random() * 4;
+      px.style.cssText = `
+        width: ${w}px;
+        height: ${h}px;
+        top: ${Math.random() * 100}%;
+        left: ${Math.random() * 100}%;
+        animation: pixelCorrupt ${0.1 + Math.random() * 0.2}s steps(1) forwards;
+        background: ${Math.random() > 0.5 ? 'var(--red-bright)' : '#fff'};
+        opacity: 0.7;
+      `;
+      container.appendChild(px);
+      setTimeout(() => px.remove(), 300);
+    }
+  }
+
+  let glitchTimer = null;
+  function scheduleRandomGlitch() {
+    if (glitchTimer) clearTimeout(glitchTimer);
+    const delay = 1500 + Math.random() * 2000;
+    glitchTimer = setTimeout(() => {
+      if (currentType !== null) {
+        triggerCorruption();
+        scheduleRandomGlitch();
+      }
+    }, delay);
+  }
+
+  // Auto trigger on load
+  window.addEventListener('load', () => {
+    setTimeout(() => triggerAlert('follow', document.querySelector('.demo-btn')), 600);
+  });
+</script>
+</body>
+</html>
