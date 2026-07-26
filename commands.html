@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GFLO — Commands</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-brand">GFLO<span class="cursor"></span></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="gaming.html">Gaming</a></li>
+      <li><a href="economy.html">Economy</a></li>
+      <li><a href="commands.html" class="active">Commands</a></li>
+      <li><a href="rules.html">Rules</a></li>
+    </ul>
+  </nav>
+
+  <div class="container">
+
+    <!-- HERO -->
+    <header class="hero">
+      <div class="boot-line">MODULE: <span>MAN_PAGES</span> — MANUAL LOADED // SCOPE: <span>TWITCH + YOUTUBE LIVE</span></div>
+      <h1 class="hero-title">COMMANDS</h1>
+      <div class="hero-tagline">Type it in chat. <em>The system responds.</em></div>
+      <div class="corner-info">
+        INTERFACE: CHAT<br>
+        PLATFORMS: TTV / YT<br>
+        PERMISSIONS: EVERYONE<br>
+        EXCEPTIONS: NOTED
+      </div>
+    </header>
+
+    <!-- LIVE COMMANDS -->
+    <section>
+      <div class="section-label">// 01 — executable now</div>
+      <h2>LIVE COMMANDS</h2>
+      <table>
+        <tr><th>Command</th><th>Syntax</th><th>Effect</th><th>Cooldown</th></tr>
+        <tr>
+          <td>!wallet</td>
+          <td>!wallet</td>
+          <td>Your Core balance ("Disk Usage"). Alias: <span style="color:var(--red);">!cores</span></td>
+          <td>5s</td>
+        </tr>
+        <tr>
+          <td>!top</td>
+          <td>!top</td>
+          <td>Task Manager — the top 5 Core holders, live in chat.</td>
+          <td>30s global</td>
+        </tr>
+        <tr>
+          <td>!gamble</td>
+          <td>!gamble &lt;amount | all&gt;</td>
+          <td>Overclock attempt. Win: 2&times; your wager. Lose: SEGMENTATION FAULT. Wager 10&ndash;5,000 Cores.</td>
+          <td>30s per user</td>
+        </tr>
+        <tr>
+          <td>CORE DUMP</td>
+          <td>channel point redemption</td>
+          <td>5,000 Channel Points &rarr; 500 Cores. One-way. See <a href="economy.html" style="color:var(--red);">ECONOMY</a>.</td>
+          <td>&mdash;</td>
+        </tr>
+        <tr>
+          <td>CORE DUMP XL</td>
+          <td>channel point redemption</td>
+          <td>25,000 Channel Points &rarr; 3,000 Cores. Bulk bonus included.</td>
+          <td>&mdash;</td>
+        </tr>
+        <tr>
+          <td>!give</td>
+          <td>!give &lt;user&gt; &lt;amount&gt;</td>
+          <td>Grant Cores. <span class="pill">MODS ONLY</span> Every grant is logged. Yes, logged.</td>
+          <td>&mdash;</td>
+        </tr>
+      </table>
+    </section>
+
+    <hr class="divider">
+
+    <!-- SCHEDULED -->
+    <section>
+      <div class="section-label">// 02 — scheduled processes</div>
+      <h2>SCHEDULED</h2>
+      <p>Compiling. These ship with the Discord Bank and later patches — syntax subject to change until release.</p>
+      <table>
+        <tr><th>Command</th><th>Where</th><th>Effect</th></tr>
+        <tr><td>!optout</td><td>chat</td><td>Remove your name from the public leaderboard on this site. Takes effect at the next sync.</td></tr>
+        <tr><td>/link</td><td>Discord</td><td>Tie your Twitch / YouTube identity to Discord. One viewer, one balance, everywhere.</td></tr>
+        <tr><td>/wallet</td><td>Discord</td><td>Disk Usage, but in Discord.</td></tr>
+        <tr><td>/boot</td><td>Discord</td><td>Daily check-in. Streak bonuses for consistent uptime.</td></tr>
+        <tr><td>/redeem</td><td>Discord</td><td>Claim a code drop from a video. Codes expire and have claim caps — speed matters.</td></tr>
+        <tr><td>/rip</td><td>Discord</td><td>Spend Cores. Open packs. Regret nothing.</td></tr>
+        <tr><td>/binder</td><td>Discord</td><td>Your collection, completion %, and set rewards.</td></tr>
+        <tr><td>/trade</td><td>Discord</td><td>Escrowed card trades with other operators. No scams possible. We checked.</td></tr>
+      </table>
+    </section>
+
+    <!-- NOTES -->
+    <section>
+      <div class="section-label">// 03 — footnotes</div>
+      <h2>RUNTIME NOTES</h2>
+      <div class="concept-block">
+        Commands work in Twitch chat and YouTube live chat. Balances are per-platform until the Discord Bank ships /link — after that, one merged balance follows you everywhere. Earning happens automatically while you watch; commands are just how you check, spend, and gamble it. Rate limits exist so the economy stays an economy.
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <div>GFLO &mdash; <span>NULLBREACH_OS v1.0</span></div>
+    <div>MODULE: <span>MAN_PAGES</span> // RTFM: <span>COMPLETE</span></div>
+    <div>&copy; 2026 GFLO. <span>All rights redacted.</span></div>
+  </footer>
+
+</body>
+</html>
